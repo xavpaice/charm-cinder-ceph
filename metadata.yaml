@@ -1,0 +1,16 @@
+name: cinder-ceph
+summary: Ceph integration for OpenStack Block Storage
+maintainer: James Page <james.page@ubuntu.com>
+description: |
+ Cinder is the block storage service for the Openstack project.
+ .
+ This charm provides a Ceph storage backend for Cinder
+categories:
+  - miscellaneous
+provides:
+  storage-backend:
+    interface: cinder-backend
+    scope: container
+requires:
+  ceph:
+    interface: ceph-client
