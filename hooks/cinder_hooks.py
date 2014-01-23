@@ -2,6 +2,7 @@
 
 import os
 import sys
+import json
 
 from cinder_utils import (
     ensure_ceph_pool,
@@ -90,8 +91,10 @@ def storage_backend(rel_id=None):
     if 'ceph' not in CONFIGS.complete_contexts():
         log('ceph relation incomplete. Peer not ready?')
     else:
-        relation_set(relation_id=rel_id,
-                     subordinate_configuration=CephSubordinateContext())
+        relation_set(
+            relation_id=rel_id,
+            subordinate_configuration=json.dumps(CephSubordinateContext()())
+        )
 
 
 if __name__ == '__main__':

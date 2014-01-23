@@ -7,10 +7,14 @@ description: |
  This charm provides a Ceph storage backend for Cinder
 categories:
   - miscellaneous
+subordinate: true
 provides:
   storage-backend:
     interface: cinder-backend
     scope: container
 requires:
+  juju-info:
+    interface: juju-info
+    scope: container
   ceph:
     interface: ceph-client
