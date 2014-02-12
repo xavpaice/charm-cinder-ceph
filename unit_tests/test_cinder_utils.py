@@ -1,4 +1,5 @@
 from mock import patch, call
+import os
 import cinder_utils as cinder_utils
 
 from test_utils import (
@@ -8,12 +9,15 @@ from test_utils import (
 TO_PATCH = [
     # helpers.core.hookenv
     'relation_ids',
+    'service_name',
     # ceph utils
     'ceph_create_pool',
     'ceph_pool_exists',
     # storage_utils
     'get_os_codename_package',
     'templating',
+    'install_alternative',
+    'mkdir'
 ]
 
 
@@ -26,6 +30,7 @@ class TestCinderUtils(CharmTestCase):
 
     def setUp(self):
         super(TestCinderUtils, self).setUp(cinder_utils, TO_PATCH)
+        self.service_name.return_value = 'cinder-ceph'
 
     def test_ensure_ceph_pool(self):
         self.ceph_pool_exists.return_value = False
@@ -39,23 +44,27 @@ class TestCinderUtils(CharmTestCase):
         cinder_utils.ensure_ceph_pool(service='cinder', replicas=3)
         self.assertFalse(self.ceph_create_pool.called)
 
-    @patch('os.mkdir')
-    @patch('os.path.isdir')
     @patch('os.path.exists')
-    def test_register_configs_ceph(self, exists, isdir, mkdir):
-        exists.return_value = False
-        isdir.return_value = False
+    def test_register_configs_ceph(self, exists):
+        exists.return_value = True
         self.get_os_codename_package.return_value = 'grizzly'
         self.relation_ids.return_value = ['ceph:0']
         configs = cinder_utils.register_configs()
         calls = []
-        for conf in [cinder_utils.CEPH_CONF]:
+        for conf in [cinder_utils.ceph_config_file()]:
             calls.append(
                 call(conf,
                      cinder_utils.CONFIG_FILES[conf]['hook_contexts'])
             )
         configs.register.assert_has_calls(calls, any_order=True)
-        self.assertTrue(mkdir.called)
+        self.mkdir.assert_has_calls([
+            call(os.path.dirname(cinder_utils.ceph_config_file())),
+            call(os.path.dirname(cinder_utils.CEPH_CONF))
+        ])
+        self.install_alternative.assert_called_with(
+            os.path.basename(cinder_utils.CEPH_CONF),
+            cinder_utils.CEPH_CONF, cinder_utils.ceph_config_file()
+        )
 
     def test_set_ceph_kludge(self):
         pass

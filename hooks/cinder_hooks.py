@@ -76,14 +76,10 @@ def ceph_changed():
 
 
 @hooks.hook('ceph-relation-broken')
-@restart_on_change(restart_map())
-def relation_broken():
-    CONFIGS.write_all()
-
-
 @hooks.hook('upgrade-charm')
-def upgrade_charm():
-    pass
+@restart_on_change(restart_map())
+def write_and_restart():
+    CONFIGS.write_all()
 
 
 @hooks.hook('storage-backend-relation-joined')

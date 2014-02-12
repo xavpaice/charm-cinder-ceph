@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 from charmhelpers.core.hookenv import (
     relation_ids,
+    service_name,
 )
 
 from charmhelpers.contrib.storage.linux.ceph import (
@@ -19,23 +20,26 @@ from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
 )
 
+from charmhelpers.contrib.openstack.alternatives import install_alternative
+from charmhelpers.core.host import mkdir
+
 
 PACKAGES = [
     'ceph-common',
 ]
 
+CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 CEPH_CONF = '/etc/ceph/ceph.conf'
 
 TEMPLATES = 'templates/'
 
 # Map config files to hook contexts and services that will be associated
 # with file in restart_on_changes()'s service map.
-CONFIG_FILES = OrderedDict([
-    (CEPH_CONF, {
-        'hook_contexts': [context.CephContext()],
-        'services': ['cinder-volume'],
-    }),
-])
+CONFIG_FILES = {}
+
+
+def ceph_config_file():
+    return CHARM_CEPH_CONF.format(service_name())
 
 
 def register_configs():
@@ -54,12 +58,23 @@ def register_configs():
     confs = []
 
     if relation_ids('ceph'):
-        # need to create this early, new peers will have a relation during
-        # registration # before they've run the ceph hooks to create the
-        # directory.
-        if not os.path.isdir(os.path.dirname(CEPH_CONF)):
-            os.mkdir(os.path.dirname(CEPH_CONF))
-        confs.append(CEPH_CONF)
+        # Add charm ceph configuration to resources and
+        # ensure directory actually exists
+        mkdir(os.path.dirname(ceph_config_file()))
+        mkdir(os.path.dirname(CEPH_CONF))
+        # Install ceph config as an alternative for co-location with
+        # ceph and ceph-osd charms - nova-compute ceph.conf will be
+        # lower priority that both of these but thats OK
+        if not os.path.exists(ceph_config_file()):
+            # touch file for pre-templated generation
+            open(ceph_config_file(), 'w').close()
+        install_alternative(os.path.basename(CEPH_CONF),
+                            CEPH_CONF, ceph_config_file())
+        CONFIG_FILES[ceph_config_file()] = {
+            'hook_contexts': [context.CephContext()],
+            'services': ['cinder-volume'],
+        }
+        confs.append(ceph_config_file())
 
     for conf in confs:
         configs.register(conf, CONFIG_FILES[conf]['hook_contexts'])
