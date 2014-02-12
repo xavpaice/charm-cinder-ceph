@@ -6,5 +6,4 @@ include:
     - contrib.openstack|inc=*
     - contrib.storage
     - contrib.hahelpers
-    - contrib.alternatives
     - payload.execd
