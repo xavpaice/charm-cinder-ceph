@@ -66,7 +66,7 @@ def ceph_changed():
                                    user='cinder', group='cinder'):
             log('Could not create ceph keyring: peer not ready?')
         else:
-            CONFIGS.write(CEPH_CONF)
+            CONFIGS.write_all()
             set_ceph_env_variables(service=svc)
             if eligible_leader(None):
                 ensure_ceph_pool(service=svc,

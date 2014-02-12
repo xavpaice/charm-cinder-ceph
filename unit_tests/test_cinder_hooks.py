@@ -86,8 +86,7 @@ class TestJoinedHooks(CharmTestCase):
                                                     user='cinder',
                                                     group='cinder')
         self.ensure_ceph_pool.assert_called_with(service='cinder', replicas=2)
-        for c in [call('/etc/ceph/ceph.conf')]:
-            self.assertIn(c, self.CONFIGS.write.call_args_list)
+        self.assertTrue(self.CONFIGS.write_all.called)
         self.set_ceph_env_variables.assert_called_with(service='cinder')
 
     def test_ceph_changed_no_keys(self):
@@ -99,7 +98,7 @@ class TestJoinedHooks(CharmTestCase):
         # NOTE(jamespage): If ensure_ceph keyring fails, then
         # the hook should just exit 0 and return.
         self.assertTrue(self.log.called)
-        self.assertFalse(self.CONFIGS.write.called)
+        self.assertFalse(self.CONFIGS.write_all.called)
 
     def test_ceph_changed_no_leadership(self):
         '''It does not attempt to create ceph pool if not leader'''
