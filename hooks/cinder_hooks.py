@@ -9,7 +9,6 @@ from cinder_utils import (
     register_configs,
     restart_map,
     set_ceph_env_variables,
-    CEPH_CONF,
     PACKAGES
 )
 
