@@ -7,6 +7,8 @@ from test_utils import (
 TO_PATCH = [
     'is_relation_made',
     'service_name',
+    'config',
+    'get_os_codename_install_source'
 ]
 
 
@@ -21,6 +23,7 @@ class TestCinderContext(CharmTestCase):
 
     def test_ceph_related(self):
         self.is_relation_made.return_value = True
+        self.get_os_codename_install_source.return_value = "havana"
         service = 'mycinder'
         self.service_name.return_value = service
         self.assertEquals(
@@ -32,6 +35,27 @@ class TestCinderContext(CharmTestCase):
                             ('volume_backend_name', service),
                             ('volume_driver',
                              'cinder.volume.driver.RBDDriver'),
+                            ('rbd_pool', service),
+                            ('rbd_user', service),
+                        ]
+                    }
+                }
+            }})
+
+    def test_ceph_related_icehouse(self):
+        self.is_relation_made.return_value = True
+        self.get_os_codename_install_source.return_value = "icehouse"
+        service = 'mycinder'
+        self.service_name.return_value = service
+        self.assertEquals(
+            contexts.CephSubordinateContext()(),
+            {"cinder": {
+                "/etc/cinder/cinder.conf": {
+                    "sections": {
+                        service: [
+                            ('volume_backend_name', service),
+                            ('volume_driver',
+                             'cinder.volume.drivers.rbd.RBDDriver'),
                             ('rbd_pool', service),
                             ('rbd_user', service),
                         ]
