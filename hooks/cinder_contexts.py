@@ -1,14 +1,13 @@
 from charmhelpers.core.hookenv import (
     service_name,
     is_relation_made,
-    config
 )
 
 from charmhelpers.contrib.openstack.context import (
     OSContextGenerator,
 )
 
-from charmhelpers.contrib.openstack.utils import get_os_codename_install_source
+from charmhelpers.contrib.openstack.utils import get_os_codename_package
 
 
 class CephSubordinateContext(OSContextGenerator):
@@ -22,8 +21,7 @@ class CephSubordinateContext(OSContextGenerator):
         if not is_relation_made('ceph', 'key'):
             return {}
         service = service_name()
-        if get_os_codename_install_source(config('openstack-origin')) \
-                >= "icehouse":
+        if get_os_codename_package('cinder-common') >= "icehouse":
             volume_driver = 'cinder.volume.drivers.rbd.RBDDriver'
         else:
             volume_driver = 'cinder.volume.driver.RBDDriver'

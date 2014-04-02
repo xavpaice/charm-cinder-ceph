@@ -37,29 +37,16 @@ TO_PATCH = [
 ]
 
 
-class TestInstallHook(CharmTestCase):
-
+class TestCinderHooks(CharmTestCase):
     def setUp(self):
-        super(TestInstallHook, self).setUp(hooks, TO_PATCH)
+        super(TestCinderHooks, self).setUp(hooks, TO_PATCH)
         self.config.side_effect = self.test_config.get
 
-    def test_correct_install_packages(self):
+    def test_install(self):
         hooks.hooks.execute(['hooks/install'])
+        self.assertTrue(self.execd_preinstall.called)
+        self.assertTrue(self.apt_update.called)
         self.apt_install.assert_called_with(['ceph-common'], fatal=True)
-
-
-class TestChangedHooks(CharmTestCase):
-
-    def setUp(self):
-        super(TestChangedHooks, self).setUp(hooks, TO_PATCH)
-        self.config.side_effect = self.test_config.get
-
-
-class TestJoinedHooks(CharmTestCase):
-
-    def setUp(self):
-        super(TestJoinedHooks, self).setUp(hooks, TO_PATCH)
-        self.config.side_effect = self.test_config.get
 
     @patch('os.mkdir')
     def test_ceph_joined(self, mkdir):
@@ -107,3 +94,12 @@ class TestJoinedHooks(CharmTestCase):
         self.ensure_ceph_keyring.return_value = True
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
         self.assertFalse(self.ensure_ceph_pool.called)
+
+    @patch.object(hooks, 'storage_backend')
+    def test_upgrade_charm_related(self, _storage_backend):
+        self.CONFIGS.complete_contexts.return_value = ['ceph']
+        self.relation_ids.return_value = ['ceph:1']
+        hooks.hooks.execute(['hooks/upgrade-charm'])
+        _storage_backend.assert_called_with('ceph:1')
+        assert self.CONFIGS.write_all.called
+        assert self.set_ceph_env_variables.called

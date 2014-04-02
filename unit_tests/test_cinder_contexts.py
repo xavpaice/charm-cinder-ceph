@@ -7,8 +7,7 @@ from test_utils import (
 TO_PATCH = [
     'is_relation_made',
     'service_name',
-    'config',
-    'get_os_codename_install_source'
+    'get_os_codename_package'
 ]
 
 
@@ -23,7 +22,7 @@ class TestCinderContext(CharmTestCase):
 
     def test_ceph_related(self):
         self.is_relation_made.return_value = True
-        self.get_os_codename_install_source.return_value = "havana"
+        self.get_os_codename_package.return_value = "havana"
         service = 'mycinder'
         self.service_name.return_value = service
         self.assertEquals(
@@ -44,7 +43,7 @@ class TestCinderContext(CharmTestCase):
 
     def test_ceph_related_icehouse(self):
         self.is_relation_made.return_value = True
-        self.get_os_codename_install_source.return_value = "icehouse"
+        self.get_os_codename_package.return_value = "icehouse"
         service = 'mycinder'
         self.service_name.return_value = service
         self.assertEquals(
