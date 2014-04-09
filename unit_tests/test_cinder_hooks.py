@@ -1,7 +1,5 @@
-
 from mock import MagicMock, patch, call
-
-
+import json
 import cinder_utils as utils
 
 from test_utils import (
@@ -33,7 +31,8 @@ TO_PATCH = [
     'apt_update',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'eligible_leader',
-    'execd_preinstall'
+    'execd_preinstall',
+    'CephSubordinateContext'
 ]
 
 
@@ -103,3 +102,27 @@ class TestCinderHooks(CharmTestCase):
         _storage_backend.assert_called_with('ceph:1')
         assert self.CONFIGS.write_all.called
         assert self.set_ceph_env_variables.called
+
+    @patch.object(hooks, 'storage_backend')
+    def test_storage_backend_changed(self, _storage_backend):
+        hooks.hooks.execute(['hooks/storage-backend-relation-changed'])
+        _storage_backend.assert_called_with()
+
+    def test_storage_backend_joined_no_ceph(self):
+        self.CONFIGS.complete_contexts.return_value = []
+        hooks.hooks.execute(['hooks/storage-backend-relation-joined'])
+        assert self.log.called
+        assert not self.relation_set.called
+
+    def test_storage_backend_joined_ceph(self):
+        def func():
+            return {'test': 1}
+        self.CONFIGS.complete_contexts.return_value = ['ceph']
+        self.service_name.return_value = 'test'
+        self.CephSubordinateContext.return_value = func
+        hooks.hooks.execute(['hooks/storage-backend-relation-joined'])
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            backend_name='test',
+            subordinate_configuration=json.dumps({'test': 1})
+            )
