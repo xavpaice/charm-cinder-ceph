@@ -89,6 +89,14 @@ def storage_backend(rel_id=None):
         )
 
 
+@hooks.hook('storage-backend-relation-changed')
+def storage_backend_changed():
+    # NOTE(jamespage) recall storage_backend as this only ever
+    # changes post initial creation if the cinder charm is upgraded to a new
+    # version of openstack.
+    storage_backend()
+
+
 @hooks.hook('upgrade-charm')
 @restart_on_change(restart_map())
 def upgrade_charm():
