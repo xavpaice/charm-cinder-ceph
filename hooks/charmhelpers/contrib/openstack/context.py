@@ -234,6 +234,10 @@ class IdentityServiceContext(OSContextGenerator):
                     rdata.get('auth_protocol') or 'http',
                 }
                 if context_complete(ctxt):
+                    # NOTE(jamespage) this is required for >= icehouse
+                    # so a missing value just indicates keystone needs
+                    # upgrading
+                    ctxt['admin_tenant_id'] = rdata.get('service_tenant_id')
                     return ctxt
         return {}
 
@@ -566,7 +570,7 @@ class NeutronContext(OSContextGenerator):
 
         if self.plugin == 'ovs':
             ctxt.update(self.ovs_ctxt())
-        elif self.plugin == 'nvp':
+        elif self.plugin in ['nvp', 'nsx']:
             ctxt.update(self.nvp_ctxt())
 
         alchemy_flags = config('neutron-alchemy-flags')
