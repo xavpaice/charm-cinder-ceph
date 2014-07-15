@@ -1,4 +1,4 @@
-from mock import MagicMock, patch, call
+from mock import MagicMock, patch
 import json
 import cinder_utils as utils
 
