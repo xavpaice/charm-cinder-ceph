@@ -71,7 +71,7 @@ class TestCinderHooks(CharmTestCase):
         self.ensure_ceph_keyring.assert_called_with(service='cinder',
                                                     user='cinder',
                                                     group='cinder')
-        self.ensure_ceph_pool.assert_called_with(service='cinder', replicas=2)
+        self.ensure_ceph_pool.assert_called_with(service='cinder', replicas=3)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.set_ceph_env_variables.assert_called_with(service='cinder')
 
