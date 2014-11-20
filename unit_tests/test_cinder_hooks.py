@@ -14,7 +14,6 @@ utils.register_configs = _register_configs
 
 TO_PATCH = [
     # cinder_utils
-    'ensure_ceph_pool',
     'ensure_ceph_keyring',
     'register_configs',
     'restart_map',
@@ -23,6 +22,7 @@ TO_PATCH = [
     # charmhelpers.core.hookenv
     'config',
     'relation_ids',
+    'relation_get',
     'relation_set',
     'service_name',
     'log',
@@ -30,7 +30,6 @@ TO_PATCH = [
     'apt_install',
     'apt_update',
     # charmhelpers.contrib.hahelpers.cluster_utils
-    'eligible_leader',
     'execd_preinstall',
     'CephSubordinateContext'
 ]
@@ -41,41 +40,47 @@ class TestCinderHooks(CharmTestCase):
         super(TestCinderHooks, self).setUp(hooks, TO_PATCH)
         self.config.side_effect = self.test_config.get
 
-    def test_install(self):
+    @patch('charmhelpers.core.hookenv.config')
+    def test_install(self, mock_config):
         hooks.hooks.execute(['hooks/install'])
         self.assertTrue(self.execd_preinstall.called)
         self.assertTrue(self.apt_update.called)
         self.apt_install.assert_called_with(['ceph-common'], fatal=True)
 
+    @patch('charmhelpers.core.hookenv.config')
     @patch('os.mkdir')
-    def test_ceph_joined(self, mkdir):
+    def test_ceph_joined(self, mkdir, mock_config):
         '''It correctly prepares for a ceph changed hook'''
         with patch('os.path.isdir') as isdir:
             isdir.return_value = False
             hooks.hooks.execute(['hooks/ceph-relation-joined'])
             mkdir.assert_called_with('/etc/ceph')
 
-    def test_ceph_changed_no_key(self):
+    @patch('charmhelpers.core.hookenv.config')
+    def test_ceph_changed_no_key(self, mock_config):
         '''It does nothing when ceph key is not available'''
         self.CONFIGS.complete_contexts.return_value = ['']
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
         m = 'ceph relation incomplete. Peer not ready?'
         self.log.assert_called_with(m)
 
-    def test_ceph_changed(self):
+    @patch('charmhelpers.core.hookenv.config')
+    def test_ceph_changed(self, mock_config):
         '''It ensures ceph assets created on ceph changed'''
         self.CONFIGS.complete_contexts.return_value = ['ceph']
+        rsp = json.dumps({'exit_code': 0})
+        self.relation_get.return_value = {'broker_rsp': rsp}
         self.service_name.return_value = 'cinder'
         self.ensure_ceph_keyring.return_value = True
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
         self.ensure_ceph_keyring.assert_called_with(service='cinder',
                                                     user='cinder',
                                                     group='cinder')
-        self.ensure_ceph_pool.assert_called_with(service='cinder', replicas=3)
         self.assertTrue(self.CONFIGS.write_all.called)
         self.set_ceph_env_variables.assert_called_with(service='cinder')
 
-    def test_ceph_changed_no_keys(self):
+    @patch('charmhelpers.core.hookenv.config')
+    def test_ceph_changed_no_keys(self, mock_config):
         '''It ensures ceph assets created on ceph changed'''
         self.CONFIGS.complete_contexts.return_value = ['ceph']
         self.service_name.return_value = 'cinder'
@@ -86,16 +91,9 @@ class TestCinderHooks(CharmTestCase):
         self.assertTrue(self.log.called)
         self.assertFalse(self.CONFIGS.write_all.called)
 
-    def test_ceph_changed_no_leadership(self):
-        '''It does not attempt to create ceph pool if not leader'''
-        self.eligible_leader.return_value = False
-        self.service_name.return_value = 'cinder'
-        self.ensure_ceph_keyring.return_value = True
-        hooks.hooks.execute(['hooks/ceph-relation-changed'])
-        self.assertFalse(self.ensure_ceph_pool.called)
-
+    @patch('charmhelpers.core.hookenv.config')
     @patch.object(hooks, 'storage_backend')
-    def test_upgrade_charm_related(self, _storage_backend):
+    def test_upgrade_charm_related(self, _storage_backend, mock_config):
         self.CONFIGS.complete_contexts.return_value = ['ceph']
         self.relation_ids.return_value = ['ceph:1']
         hooks.hooks.execute(['hooks/upgrade-charm'])
@@ -103,18 +101,21 @@ class TestCinderHooks(CharmTestCase):
         assert self.CONFIGS.write_all.called
         assert self.set_ceph_env_variables.called
 
+    @patch('charmhelpers.core.hookenv.config')
     @patch.object(hooks, 'storage_backend')
-    def test_storage_backend_changed(self, _storage_backend):
+    def test_storage_backend_changed(self, _storage_backend, mock_config):
         hooks.hooks.execute(['hooks/storage-backend-relation-changed'])
         _storage_backend.assert_called_with()
 
-    def test_storage_backend_joined_no_ceph(self):
+    @patch('charmhelpers.core.hookenv.config')
+    def test_storage_backend_joined_no_ceph(self, mock_config):
         self.CONFIGS.complete_contexts.return_value = []
         hooks.hooks.execute(['hooks/storage-backend-relation-joined'])
         assert self.log.called
         assert not self.relation_set.called
 
-    def test_storage_backend_joined_ceph(self):
+    @patch('charmhelpers.core.hookenv.config')
+    def test_storage_backend_joined_ceph(self, mock_config):
         def func():
             return {'test': 1}
         self.CONFIGS.complete_contexts.return_value = ['ceph']
