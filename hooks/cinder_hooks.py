@@ -5,31 +5,32 @@ import sys
 import json
 
 from cinder_utils import (
-    ensure_ceph_pool,
     register_configs,
     restart_map,
     set_ceph_env_variables,
     PACKAGES
 )
+from cinder_contexts import CephSubordinateContext
 
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
     config,
     service_name,
+    relation_get,
     relation_set,
     relation_ids,
-    log
+    log,
+    INFO,
+    ERROR,
 )
-
-from cinder_contexts import CephSubordinateContext
-
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.host import restart_on_change
-
-from charmhelpers.contrib.storage.linux.ceph import ensure_ceph_keyring
-from charmhelpers.contrib.hahelpers.cluster import eligible_leader
-
+from charmhelpers.contrib.storage.linux.ceph import (
+    ensure_ceph_keyring,
+    CephBrokerRq,
+    CephBrokerRsp,
+)
 from charmhelpers.payload.execd import execd_preinstall
 
 hooks = Hooks()
@@ -55,19 +56,36 @@ def ceph_joined():
 def ceph_changed():
     if 'ceph' not in CONFIGS.complete_contexts():
         log('ceph relation incomplete. Peer not ready?')
+        return
+
+    service = service_name()
+    if not ensure_ceph_keyring(service=service,
+                               user='cinder', group='cinder'):
+        log('Could not create ceph keyring: peer not ready?')
+        return
+
+    settings = relation_get()
+    if settings and 'broker_rsp' in settings:
+        rsp = CephBrokerRsp(settings['broker_rsp'])
+        # Non-zero return code implies failure
+        if rsp.exit_code:
+            log("Ceph broker request failed (rc=%s, msg=%s)" %
+                (rsp.exit_code, rsp.exit_msg), level=ERROR)
+            return
+
+        log("Ceph broker request succeeded (rc=%s, msg=%s)" %
+            (rsp.exit_code, rsp.exit_msg), level=INFO)
+        CONFIGS.write_all()
+        set_ceph_env_variables(service=service)
+        for rid in relation_ids('storage-backend'):
+            storage_backend(rid)
     else:
-        svc = service_name()
-        if not ensure_ceph_keyring(service=svc,
-                                   user='cinder', group='cinder'):
-            log('Could not create ceph keyring: peer not ready?')
-        else:
-            CONFIGS.write_all()
-            set_ceph_env_variables(service=svc)
-            if eligible_leader(None):
-                ensure_ceph_pool(service=svc,
-                                 replicas=config('ceph-osd-replication-count'))
-            for rid in relation_ids('storage-backend'):
-                storage_backend(rid)
+        rq = CephBrokerRq()
+        replicas = config('ceph-osd-replication-count')
+        rq.add_op_create_pool(name=service, replica_count=replicas)
+        for rid in relation_ids('ceph'):
+            relation_set(relation_id=rid, broker_req=rq.request)
+            log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
 
 @hooks.hook('ceph-relation-broken',

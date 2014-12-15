@@ -10,9 +10,6 @@ TO_PATCH = [
     # helpers.core.hookenv
     'relation_ids',
     'service_name',
-    # ceph utils
-    'ceph_create_pool',
-    'ceph_pool_exists',
     # storage_utils
     'get_os_codename_package',
     'templating',
@@ -31,18 +28,6 @@ class TestCinderUtils(CharmTestCase):
     def setUp(self):
         super(TestCinderUtils, self).setUp(cinder_utils, TO_PATCH)
         self.service_name.return_value = 'cinder-ceph'
-
-    def test_ensure_ceph_pool(self):
-        self.ceph_pool_exists.return_value = False
-        cinder_utils.ensure_ceph_pool(service='cinder', replicas=3)
-        self.ceph_create_pool.assert_called_with(service='cinder',
-                                                 name='cinder',
-                                                 replicas=3)
-
-    def test_ensure_ceph_pool_already_exists(self):
-        self.ceph_pool_exists.return_value = True
-        cinder_utils.ensure_ceph_pool(service='cinder', replicas=3)
-        self.assertFalse(self.ceph_create_pool.called)
 
     @patch('os.path.exists')
     def test_register_configs_ceph(self, exists):
