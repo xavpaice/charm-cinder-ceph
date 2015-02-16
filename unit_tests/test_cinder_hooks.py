@@ -31,7 +31,8 @@ TO_PATCH = [
     'apt_update',
     # charmhelpers.contrib.hahelpers.cluster_utils
     'execd_preinstall',
-    'CephSubordinateContext'
+    'CephSubordinateContext',
+    'delete_keyring'
 ]
 
 
@@ -90,6 +91,15 @@ class TestCinderHooks(CharmTestCase):
         # the hook should just exit 0 and return.
         self.assertTrue(self.log.called)
         self.assertFalse(self.CONFIGS.write_all.called)
+
+    @patch('charmhelpers.core.hookenv.config')
+    def test_ceph_broken(self, mock_config):
+        self.CONFIGS.complete_contexts.return_value = ['ceph']
+        self.service_name.return_value = 'cinder-ceph'
+        hooks.hooks.execute(['hooks/ceph-relation-changed'])
+        hooks.hooks.execute(['hooks/ceph-relation-broken'])
+        self.delete_keyring.assert_called_with(service='cinder-ceph')
+        self.assertTrue(self.CONFIGS.write_all.called)
 
     @patch('charmhelpers.core.hookenv.config')
     @patch.object(hooks, 'storage_backend')

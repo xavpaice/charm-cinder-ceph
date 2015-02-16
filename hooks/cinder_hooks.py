@@ -30,6 +30,7 @@ from charmhelpers.contrib.storage.linux.ceph import (
     ensure_ceph_keyring,
     CephBrokerRq,
     CephBrokerRsp,
+    delete_keyring,
 )
 from charmhelpers.payload.execd import execd_preinstall
 
@@ -88,8 +89,14 @@ def ceph_changed():
             log("Request(s) sent to Ceph broker (rid=%s)" % (rid))
 
 
-@hooks.hook('ceph-relation-broken',
-            'config-changed')
+@hooks.hook('ceph-relation-broken')
+def ceph_broken():
+    service = service_name()
+    delete_keyring(service=service)
+    CONFIGS.write_all()
+
+
+@hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def write_and_restart():
     CONFIGS.write_all()
