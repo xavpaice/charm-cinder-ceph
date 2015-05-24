@@ -12,6 +12,10 @@ from cinder_utils import (
 )
 from cinder_contexts import CephSubordinateContext
 
+from charmhelpers.core.host import (
+    service_restart,
+)
+
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -80,6 +84,10 @@ def ceph_changed():
         set_ceph_env_variables(service=service)
         for rid in relation_ids('storage-backend'):
             storage_backend(rid)
+
+        # Ensure that cinder-volume is restarted since only now can we
+        # guarantee that ceph resources are ready.
+        service_restart('cinder-volume')
     else:
         rq = CephBrokerRq()
         replicas = config('ceph-osd-replication-count')
