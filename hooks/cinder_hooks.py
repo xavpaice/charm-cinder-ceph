@@ -12,10 +12,6 @@ from cinder_utils import (
 )
 from cinder_contexts import CephSubordinateContext
 
-from charmhelpers.core.host import (
-    service_restart,
-)
-
 from charmhelpers.core.hookenv import (
     Hooks,
     UnregisteredHookError,
@@ -29,7 +25,10 @@ from charmhelpers.core.hookenv import (
     ERROR,
 )
 from charmhelpers.fetch import apt_install, apt_update
-from charmhelpers.core.host import restart_on_change
+from charmhelpers.core.host import (
+    restart_on_change,
+    service_restart,
+)
 from charmhelpers.contrib.storage.linux.ceph import (
     ensure_ceph_keyring,
     CephBrokerRq,
