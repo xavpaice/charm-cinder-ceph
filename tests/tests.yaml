@@ -1,0 +1,16 @@
+bootstrap: true
+reset: true
+virtualenv: true
+makefile:
+    - lint
+    - unit_test
+sources:
+    - ppa:juju/stable
+packages:
+    - amulet
+    - python-amulet
+    - python-cinderclient
+    - python-distro-info
+    - python-glanceclient
+    - python-keystoneclient
+    - python-novaclient

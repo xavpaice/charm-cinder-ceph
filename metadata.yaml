@@ -5,7 +5,7 @@ description: |
  Cinder is the block storage service for the Openstack project.
  .
  This charm provides a Ceph storage backend for Cinder
-categories:
+tags:
   - miscellaneous
 subordinate: true
 provides:
