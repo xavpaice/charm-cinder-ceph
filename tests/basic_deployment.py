@@ -166,7 +166,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         # Process name and quantity of processes to expect on each unit
         ceph_processes = {
             'ceph-mon': 1,
-            'ceph-mon': 1,
             'ceph-osd': 2
         }
 
