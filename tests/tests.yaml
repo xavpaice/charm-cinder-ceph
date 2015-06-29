@@ -3,7 +3,7 @@ reset: true
 virtualenv: true
 makefile:
     - lint
-    - unit_test
+    - test
 sources:
     - ppa:juju/stable
 packages:
@@ -12,5 +12,7 @@ packages:
     - python-cinderclient
     - python-distro-info
     - python-glanceclient
+    - python-heatclient
     - python-keystoneclient
     - python-novaclient
+    - python-swiftclient
