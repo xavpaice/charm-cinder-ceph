@@ -212,6 +212,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
     def test_110_users(self):
         """Verify expected users."""
+        u.log.debug('Checking keystone users...')
         expected = [
             {'name': 'cinder_cinderv2',
              'enabled': True,
@@ -231,6 +232,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
     def test_112_service_catalog(self):
         """Verify that the service catalog endpoint data"""
+        u.log.debug('Checking keystone service catalog...')
         endpoint_vol = {
             'adminURL': u.valid_url,
             'region': 'RegionOne',
@@ -259,6 +261,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
     def test_114_cinder_endpoint(self):
         """Verify the cinder endpoint data."""
+        u.log.debug('Checking cinder api endpoint data...')
         endpoints = self.keystone.endpoints.list()
         admin_port = internal_port = public_port = '8776'
         expected = {
