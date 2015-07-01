@@ -6,7 +6,10 @@ description: |
  .
  This charm provides a Ceph storage backend for Cinder
 tags:
-  - miscellaneous
+  - openstack
+  - storage
+  - file-servers
+  - misc
 subordinate: true
 provides:
   storage-backend:
