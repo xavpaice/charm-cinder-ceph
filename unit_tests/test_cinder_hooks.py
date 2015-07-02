@@ -25,6 +25,7 @@ TO_PATCH = [
     'relation_get',
     'relation_set',
     'service_name',
+    'service_restart',
     'log',
     # charmhelpers.core.host
     'apt_install',
