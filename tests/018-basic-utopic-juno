@@ -1,9 +1,0 @@
-#!/usr/bin/python
-
-"""Amulet tests on a basic cinder-ceph deployment on utopic-juno."""
-
-from basic_deployment import CinderCephBasicDeployment
-
-if __name__ == '__main__':
-    deployment = CinderCephBasicDeployment(series='utopic')
-    deployment.run_tests()
