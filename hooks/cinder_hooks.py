@@ -17,12 +17,9 @@ from charmhelpers.core.hookenv import (
     UnregisteredHookError,
     config,
     service_name,
-    relation_get,
     relation_set,
     relation_ids,
     log,
-    INFO,
-    ERROR,
 )
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.host import (
@@ -34,7 +31,6 @@ from charmhelpers.contrib.storage.linux.ceph import (
     request_complete,
     ensure_ceph_keyring,
     CephBrokerRq,
-    CephBrokerRsp,
     delete_keyring,
 )
 from charmhelpers.payload.execd import execd_preinstall
@@ -56,12 +52,14 @@ def ceph_joined():
     if not os.path.isdir('/etc/ceph'):
         os.mkdir('/etc/ceph')
 
+
 def get_ceph_request():
     service = service_name()
     rq = CephBrokerRq()
     replicas = config('ceph-osd-replication-count')
     rq.add_op_create_pool(name=service, replica_count=replicas)
     return rq
+
 
 @hooks.hook('ceph-relation-changed')
 @restart_on_change(restart_map())
