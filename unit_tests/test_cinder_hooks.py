@@ -18,7 +18,7 @@ TO_PATCH = [
     'register_configs',
     'restart_map',
     'set_ceph_env_variables',
-    'request_complete',
+    'is_request_complete',
     'send_request_if_needed',
     'CONFIGS',
     # charmhelpers.core.hookenv
@@ -70,7 +70,7 @@ class TestCinderHooks(CharmTestCase):
     @patch('charmhelpers.core.hookenv.config')
     def test_ceph_changed(self, mock_config):
         '''It ensures ceph assets created on ceph changed'''
-        self.request_complete.return_value = True
+        self.is_request_complete.return_value = True
         self.CONFIGS.complete_contexts.return_value = ['ceph']
         self.service_name.return_value = 'cinder'
         self.ensure_ceph_keyring.return_value = True
@@ -86,7 +86,7 @@ class TestCinderHooks(CharmTestCase):
     def test_ceph_changed_newrq(self, mock_config, mock_get_ceph_request):
         '''It ensures ceph assets created on ceph changed'''
         mock_get_ceph_request.return_value = 'cephreq'
-        self.request_complete.return_value = False
+        self.is_request_complete.return_value = False
         self.CONFIGS.complete_contexts.return_value = ['ceph']
         self.service_name.return_value = 'cinder'
         self.ensure_ceph_keyring.return_value = True
@@ -101,7 +101,7 @@ class TestCinderHooks(CharmTestCase):
         '''It ensures ceph assets created on ceph changed'''
         self.CONFIGS.complete_contexts.return_value = ['ceph']
         self.service_name.return_value = 'cinder'
-        self.request_complete.return_value = True
+        self.is_request_complete.return_value = True
         self.ensure_ceph_keyring.return_value = False
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
         # NOTE(jamespage): If ensure_ceph keyring fails, then

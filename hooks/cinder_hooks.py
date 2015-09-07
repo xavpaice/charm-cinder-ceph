@@ -28,7 +28,7 @@ from charmhelpers.core.host import (
 )
 from charmhelpers.contrib.storage.linux.ceph import (
     send_request_if_needed,
-    request_complete,
+    is_request_complete,
     ensure_ceph_keyring,
     CephBrokerRq,
     delete_keyring,
@@ -74,7 +74,7 @@ def ceph_changed():
         log('Could not create ceph keyring: peer not ready?')
         return
 
-    if request_complete(get_ceph_request()):
+    if is_request_complete(get_ceph_request()):
         log('Request complete')
         CONFIGS.write_all()
         set_ceph_env_variables(service=service)
