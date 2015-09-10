@@ -117,8 +117,8 @@ def storage_backend(rel_id=None):
         relation_set(
             relation_id=rel_id,
             backend_name=service_name(),
-            subordinate_configuration=json.dumps(CephSubordinateContext()(),
-            stateful=False)
+            subordinate_configuration=json.dumps(CephSubordinateContext()()),
+            stateful=False,
         )
 
 
