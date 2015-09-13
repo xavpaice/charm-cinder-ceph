@@ -136,5 +136,6 @@ class TestCinderHooks(CharmTestCase):
         self.relation_set.assert_called_with(
             relation_id=None,
             backend_name='test',
-            subordinate_configuration=json.dumps({'test': 1})
+            subordinate_configuration=json.dumps({'test': 1}),
+            stateless=True,
             )
