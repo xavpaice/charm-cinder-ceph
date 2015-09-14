@@ -296,6 +296,24 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                     return "Mismatch, op: {} key: {}".format(index, key)
         return None
 
+    def get_broker_request(self):
+        client_unit = self.cinder_ceph_sentry
+        broker_req = json.loads(client_unit.relation(
+            'ceph',
+            'ceph:client')['broker_req'])
+        return broker_req
+
+    def get_broker_response(self):
+        broker_request = self.get_broker_request()
+        response_key = "broker-rsp-cinder-ceph-0"
+        ceph_sentrys = [self.ceph0_sentry, self.ceph1_sentry, self.ceph2_sentry]
+        for sentry in ceph_sentrys:
+            relation_data = sentry.relation('client', 'cinder-ceph:ceph')
+            if relation_data.get(response_key):
+                broker_response = json.loads(relation_data[response_key])
+                if broker_request['request-id'] == broker_response['request-id']:
+                    return broker_response
+
     def test_200_cinderceph_ceph_ceph_relation(self):
         u.log.debug('Checking cinder-ceph:ceph to ceph:client '
                     'relation data...')
@@ -322,18 +340,22 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_201_ceph_cinderceph_ceph_relation(self):
         u.log.debug('Checking ceph:client to cinder-ceph:ceph '
                     'relation data...')
-        unit = self.ceph0_sentry
+        response_key = "broker-rsp-cinder-ceph-0"
+        ceph_unit = self.ceph0_sentry
         relation = ['client', 'cinder-ceph:ceph']
         expected = {
             'key': u.not_null,
             'private-address': u.valid_ip,
-            'broker_rsp': '{"exit-code": 0}',
             'ceph-public-address': u.valid_ip,
             'auth': 'none',
         }
-        ret = u.validate_relation_data(unit, relation, expected)
+        ret = u.validate_relation_data(ceph_unit, relation, expected)
         if ret:
             msg = u.relation_error('cinder cinder-ceph storage-backend', ret)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        broker_response = self.get_broker_response()
+        if not broker_response or broker_response['exit-code'] != 0:
+            msg='Broker request invalid or failed: {}'.format(broker_response)
             amulet.raise_status(amulet.FAIL, msg=msg)
 
     def test_202_cinderceph_cinder_backend_relation(self):
