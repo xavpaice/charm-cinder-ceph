@@ -18,11 +18,12 @@ TO_PATCH = [
     'register_configs',
     'restart_map',
     'set_ceph_env_variables',
+    'is_request_complete',
+    'send_request_if_needed',
     'CONFIGS',
     # charmhelpers.core.hookenv
     'config',
     'relation_ids',
-    'relation_get',
     'relation_set',
     'service_name',
     'service_restart',
@@ -69,9 +70,8 @@ class TestCinderHooks(CharmTestCase):
     @patch('charmhelpers.core.hookenv.config')
     def test_ceph_changed(self, mock_config):
         '''It ensures ceph assets created on ceph changed'''
+        self.is_request_complete.return_value = True
         self.CONFIGS.complete_contexts.return_value = ['ceph']
-        rsp = json.dumps({'exit_code': 0})
-        self.relation_get.return_value = {'broker_rsp': rsp}
         self.service_name.return_value = 'cinder'
         self.ensure_ceph_keyring.return_value = True
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
@@ -81,11 +81,27 @@ class TestCinderHooks(CharmTestCase):
         self.assertTrue(self.CONFIGS.write_all.called)
         self.set_ceph_env_variables.assert_called_with(service='cinder')
 
+    @patch.object(hooks, 'get_ceph_request')
+    @patch('charmhelpers.core.hookenv.config')
+    def test_ceph_changed_newrq(self, mock_config, mock_get_ceph_request):
+        '''It ensures ceph assets created on ceph changed'''
+        mock_get_ceph_request.return_value = 'cephreq'
+        self.is_request_complete.return_value = False
+        self.CONFIGS.complete_contexts.return_value = ['ceph']
+        self.service_name.return_value = 'cinder'
+        self.ensure_ceph_keyring.return_value = True
+        hooks.hooks.execute(['hooks/ceph-relation-changed'])
+        self.ensure_ceph_keyring.assert_called_with(service='cinder',
+                                                    user='cinder',
+                                                    group='cinder')
+        self.send_request_if_needed.assert_called_with('cephreq')
+
     @patch('charmhelpers.core.hookenv.config')
     def test_ceph_changed_no_keys(self, mock_config):
         '''It ensures ceph assets created on ceph changed'''
         self.CONFIGS.complete_contexts.return_value = ['ceph']
         self.service_name.return_value = 'cinder'
+        self.is_request_complete.return_value = True
         self.ensure_ceph_keyring.return_value = False
         hooks.hooks.execute(['hooks/ceph-relation-changed'])
         # NOTE(jamespage): If ensure_ceph keyring fails, then

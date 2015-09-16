@@ -4,6 +4,7 @@
 Basic cinder-ceph functional test.
 """
 import amulet
+import json
 import time
 
 from charmhelpers.contrib.openstack.amulet.deployment import (
@@ -279,20 +280,59 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             amulet.raise_status(amulet.FAIL,
                                 msg='cinder endpoint: {}'.format(ret))
 
+    def validate_broker_req(self, unit, relation, expected):
+        rel_data = json.loads(unit.relation(
+            relation[0],
+            relation[1])['broker_req'])
+        if rel_data['api-version'] != expected['api-version']:
+            return "Broker request api mismatch"
+        for index in range(0, len(rel_data['ops'])):
+            actual_op = rel_data['ops'][index]
+            expected_op = expected['ops'][index]
+            for key in ['op', 'name', 'replicas']:
+                if actual_op[key] == expected_op[key]:
+                    u.log.debug("OK op {} key {}".format(index, key))
+                else:
+                    return "Mismatch, op: {} key: {}".format(index, key)
+        return None
+
+    def get_broker_request(self):
+        client_unit = self.cinder_ceph_sentry
+        broker_req = json.loads(client_unit.relation(
+            'ceph',
+            'ceph:client')['broker_req'])
+        return broker_req
+
+    def get_broker_response(self):
+        broker_request = self.get_broker_request()
+        response_key = "broker-rsp-cinder-ceph-0"
+        ceph_sentrys = [self.ceph0_sentry, self.ceph1_sentry, self.ceph2_sentry]
+        for sentry in ceph_sentrys:
+            relation_data = sentry.relation('client', 'cinder-ceph:ceph')
+            if relation_data.get(response_key):
+                broker_response = json.loads(relation_data[response_key])
+                if broker_request['request-id'] == broker_response['request-id']:
+                    return broker_response
+
     def test_200_cinderceph_ceph_ceph_relation(self):
         u.log.debug('Checking cinder-ceph:ceph to ceph:client '
                     'relation data...')
         unit = self.cinder_ceph_sentry
         relation = ['ceph', 'ceph:client']
 
-        req = ('{"api-version": 1, "ops": [{"replicas": 3, "name": '
-               '"cinder-ceph", "op": "create-pool"}]}')
-
+        req = {
+           "api-version": 1,
+           "ops": [{"replicas": 3, "name": "cinder-ceph", "op": "create-pool"}]
+        }
         expected = {
             'private-address': u.valid_ip,
-            'broker_req': req
+            'broker_req': u.not_null,
         }
         ret = u.validate_relation_data(unit, relation, expected)
+        if ret:
+            msg = u.relation_error('cinder-ceph ceph', ret)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        ret = self.validate_broker_req(unit, relation, req)
         if ret:
             msg = u.relation_error('cinder-ceph ceph', ret)
             amulet.raise_status(amulet.FAIL, msg=msg)
@@ -300,18 +340,22 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_201_ceph_cinderceph_ceph_relation(self):
         u.log.debug('Checking ceph:client to cinder-ceph:ceph '
                     'relation data...')
-        unit = self.ceph0_sentry
+        response_key = "broker-rsp-cinder-ceph-0"
+        ceph_unit = self.ceph0_sentry
         relation = ['client', 'cinder-ceph:ceph']
         expected = {
             'key': u.not_null,
             'private-address': u.valid_ip,
-            'broker_rsp': '{"exit-code": 0}',
             'ceph-public-address': u.valid_ip,
-            'auth': 'none'
+            'auth': 'none',
         }
-        ret = u.validate_relation_data(unit, relation, expected)
+        ret = u.validate_relation_data(ceph_unit, relation, expected)
         if ret:
             msg = u.relation_error('cinder cinder-ceph storage-backend', ret)
+            amulet.raise_status(amulet.FAIL, msg=msg)
+        broker_response = self.get_broker_response()
+        if not broker_response or broker_response['exit-code'] != 0:
+            msg='Broker request invalid or failed: {}'.format(broker_response)
             amulet.raise_status(amulet.FAIL, msg=msg)
 
     def test_202_cinderceph_cinder_backend_relation(self):
