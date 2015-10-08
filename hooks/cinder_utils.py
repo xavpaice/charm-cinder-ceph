@@ -23,6 +23,10 @@ PACKAGES = [
     'ceph-common',
 ]
 
+REQUIRED_INTERFACES = {
+    'ceph': ['ceph'],
+}
+
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 CEPH_CONF = '/etc/ceph/ceph.conf'
 
