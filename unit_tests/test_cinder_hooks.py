@@ -34,7 +34,8 @@ TO_PATCH = [
     # charmhelpers.contrib.hahelpers.cluster_utils
     'execd_preinstall',
     'CephSubordinateContext',
-    'delete_keyring'
+    'delete_keyring',
+    'status_set'
 ]
 
 

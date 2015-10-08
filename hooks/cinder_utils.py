@@ -4,6 +4,7 @@ from collections import OrderedDict
 from charmhelpers.core.hookenv import (
     relation_ids,
     service_name,
+    status_get,
 )
 
 from charmhelpers.contrib.openstack import (
@@ -13,6 +14,7 @@ from charmhelpers.contrib.openstack import (
 
 from charmhelpers.contrib.openstack.utils import (
     get_os_codename_package,
+    set_os_workload_status,
 )
 
 from charmhelpers.contrib.openstack.alternatives import install_alternative
@@ -22,6 +24,10 @@ from charmhelpers.core.host import mkdir
 PACKAGES = [
     'ceph-common',
 ]
+
+REQUIRED_INTERFACES = {
+    'ceph': ['ceph'],
+}
 
 CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
 CEPH_CONF = '/etc/ceph/ceph.conf'
@@ -104,3 +110,13 @@ def set_ceph_env_variables(service):
             out.write('CEPH_ARGS="--id %s"\n' % service)
     with open('/etc/init/cinder-volume.override', 'w') as out:
             out.write('env CEPH_ARGS="--id %s"\n' % service)
+
+
+def check_optional_relations(configs):
+    # No optional relations at this time
+    required_interfaces = {}
+    if required_interfaces:
+        set_os_workload_status(configs, required_interfaces)
+        return status_get()
+    else:
+        return 'unknown', 'No optional relations'

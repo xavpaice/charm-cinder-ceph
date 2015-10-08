@@ -8,7 +8,9 @@ from cinder_utils import (
     register_configs,
     restart_map,
     set_ceph_env_variables,
-    PACKAGES
+    PACKAGES,
+    REQUIRED_INTERFACES,
+    check_optional_relations,
 )
 from cinder_contexts import CephSubordinateContext
 
@@ -19,6 +21,7 @@ from charmhelpers.core.hookenv import (
     service_name,
     relation_set,
     relation_ids,
+    status_set,
     log,
 )
 from charmhelpers.fetch import apt_install, apt_update
@@ -34,6 +37,8 @@ from charmhelpers.contrib.storage.linux.ceph import (
     delete_keyring,
 )
 from charmhelpers.payload.execd import execd_preinstall
+from charmhelpers.contrib.openstack.utils import set_os_workload_status
+
 
 hooks = Hooks()
 
@@ -42,7 +47,9 @@ CONFIGS = register_configs()
 
 @hooks.hook('install')
 def install():
+    status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
+    status_set('maintenance', 'Installing apt packages')
     apt_update(fatal=True)
     apt_install(PACKAGES, fatal=True)
 
@@ -136,3 +143,5 @@ if __name__ == '__main__':
         hooks.execute(sys.argv)
     except UnregisteredHookError as e:
         log('Unknown hook {} - skipping.'.format(e))
+    set_os_workload_status(CONFIGS, REQUIRED_INTERFACES,
+                           charm_func=check_optional_relations)
