@@ -14,7 +14,6 @@ from charmhelpers.contrib.openstack.amulet.deployment import (
 from charmhelpers.contrib.openstack.amulet.utils import (
     OpenStackAmuletUtils,
     DEBUG,
-    #ERROR
 )
 
 # Use DEBUG to turn on debug logging
@@ -306,12 +305,15 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def get_broker_response(self):
         broker_request = self.get_broker_request()
         response_key = "broker-rsp-cinder-ceph-0"
-        ceph_sentrys = [self.ceph0_sentry, self.ceph1_sentry, self.ceph2_sentry]
+        ceph_sentrys = [self.ceph0_sentry,
+                        self.ceph1_sentry,
+                        self.ceph2_sentry]
         for sentry in ceph_sentrys:
             relation_data = sentry.relation('client', 'cinder-ceph:ceph')
             if relation_data.get(response_key):
                 broker_response = json.loads(relation_data[response_key])
-                if broker_request['request-id'] == broker_response['request-id']:
+                if (broker_request['request-id'] ==
+                        broker_response['request-id']):
                     return broker_response
 
     def test_200_cinderceph_ceph_ceph_relation(self):
@@ -321,8 +323,10 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         relation = ['ceph', 'ceph:client']
 
         req = {
-           "api-version": 1,
-           "ops": [{"replicas": 3, "name": "cinder-ceph", "op": "create-pool"}]
+            "api-version": 1,
+            "ops": [{"replicas": 3,
+                     "name": "cinder-ceph",
+                     "op": "create-pool"}]
         }
         expected = {
             'private-address': u.valid_ip,
@@ -340,7 +344,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_201_ceph_cinderceph_ceph_relation(self):
         u.log.debug('Checking ceph:client to cinder-ceph:ceph '
                     'relation data...')
-        response_key = "broker-rsp-cinder-ceph-0"
         ceph_unit = self.ceph0_sentry
         relation = ['client', 'cinder-ceph:ceph']
         expected = {
@@ -355,7 +358,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             amulet.raise_status(amulet.FAIL, msg=msg)
         broker_response = self.get_broker_response()
         if not broker_response or broker_response['exit-code'] != 0:
-            msg='Broker request invalid or failed: {}'.format(broker_response)
+            msg = ('Broker request invalid'
+                   ' or failed: {}'.format(broker_response))
             amulet.raise_status(amulet.FAIL, msg=msg)
 
     def test_202_cinderceph_cinder_backend_relation(self):
