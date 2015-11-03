@@ -155,4 +155,4 @@ class TestCinderHooks(CharmTestCase):
             backend_name='test',
             subordinate_configuration=json.dumps({'test': 1}),
             stateless=True,
-            )
+        )
