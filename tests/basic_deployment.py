@@ -210,6 +210,9 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             services[self.ceph1_sentry] = ceph_services
             services[self.ceph2_sentry] = ceph_services
 
+        if self._get_openstack_release() >= self.trusty_liberty:
+            services[self.keystone_sentry] = ['apache2']
+
         ret = u.validate_services_by_name(services)
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
@@ -518,6 +521,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
         auth_uri = 'http://' + rel_ks_ci['auth_host'] + \
                    ':' + rel_ks_ci['service_port'] + '/'
+        auth_url = ('http://%s:%s/' %
+                    (rel_ks_ci['auth_host'], rel_ks_ci['auth_port']))
 
         expected = {
             'DEFAULT': {
@@ -534,7 +539,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                 'admin_user': rel_ks_ci['service_username'],
                 'admin_password': rel_ks_ci['service_password'],
                 'admin_tenant_name': rel_ks_ci['service_tenant'],
-                'auth_uri': auth_uri
+                'auth_uri': auth_uri,
+                'signing_dir': '/var/cache/cinder'
             },
             'cinder-ceph': {
                 'volume_backend_name': 'cinder-ceph',
@@ -550,6 +556,23 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             'rabbit_password': rel_mq_ci['password'],
             'rabbit_host': rel_mq_ci['hostname'],
         }
+        if self._get_openstack_release() >= self.trusty_liberty:
+            expected['keystone_authtoken'] = {
+                'auth_uri': auth_uri.rstrip('/'),
+                'auth_url': auth_url.rstrip('/'),
+                'auth_plugin': 'password',
+                'project_domain_id': 'default',
+                'user_domain_id': 'default',
+                'project_name': 'services',
+                'username': rel_ks_ci['service_username'],
+                'password': rel_ks_ci['service_password'],
+                'signing_dir': '/var/cache/cinder'
+            }
+
+        if self._get_openstack_release() == self.trusty_kilo:
+            expected['keystone_authtoken']['auth_uri'] = auth_uri
+            expected['keystone_authtoken']['identity_uri'] = \
+                auth_url.strip('/')
 
         if self._get_openstack_release() >= self.trusty_kilo:
             # Kilo or later
