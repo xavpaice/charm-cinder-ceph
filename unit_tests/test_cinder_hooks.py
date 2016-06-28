@@ -23,7 +23,7 @@ from test_utils import (
 # Need to do some early patching to get the module loaded.
 _register_configs = utils.register_configs
 utils.register_configs = MagicMock()
-import cinder_hooks as hooks
+import cinder_hooks as hooks  # noqa
 utils.register_configs = _register_configs
 
 TO_PATCH = [
@@ -110,6 +110,16 @@ class TestCinderHooks(CharmTestCase):
                                                     user='cinder',
                                                     group='cinder')
         self.send_request_if_needed.assert_called_with('cephreq')
+
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_create_pool')
+    def test_create_pool_op(self, mock_broker):
+        self.service_name.return_value = 'cinder'
+        self.test_config.set('ceph-osd-replication-count', 4)
+        self.test_config.set('ceph-pool-weight', 20)
+        hooks.get_ceph_request()
+        mock_broker.assert_called_with(name='cinder', replica_count=4,
+                                       weight=20)
 
     @patch('charmhelpers.core.hookenv.config')
     def test_ceph_changed_no_keys(self, mock_config):
