@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Copyright 2016 Canonical Ltd
 #
@@ -124,17 +124,14 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def _initialize_tests(self):
         """Perform final initialization before tests get run."""
         # Access the sentries for inspecting service units
-        u.log.debug('!!!!!')
-        u.log.debug(dir(self.d.sentry))
-
-        self.mysql_sentry = self.d.sentry.unit['mysql/0']
-        self.keystone_sentry = self.d.sentry.unit['keystone/0']
-        self.rabbitmq_sentry = self.d.sentry.unit['rabbitmq-server/0']
-        self.cinder_sentry = self.d.sentry.unit['cinder/0']
-        self.ceph0_sentry = self.d.sentry.unit['ceph/0']
-        self.ceph1_sentry = self.d.sentry.unit['ceph/1']
-        self.ceph2_sentry = self.d.sentry.unit['ceph/2']
-        self.cinder_ceph_sentry = self.d.sentry.unit['cinder-ceph/0']
+        self.mysql_sentry = self.d.sentry['mysql'][0]
+        self.keystone_sentry = self.d.sentry['keystone'][0]
+        self.rabbitmq_sentry = self.d.sentry['rabbitmq-server'][0]
+        self.cinder_sentry = self.d.sentry['cinder'][0]
+        self.ceph0_sentry = self.d.sentry['ceph'][0]
+        self.ceph1_sentry = self.d.sentry['ceph'][1]
+        self.ceph2_sentry = self.d.sentry['ceph'][2]
+        self.cinder_ceph_sentry = self.d.sentry['cinder-ceph'][0]
         u.log.debug('openstack release val: {}'.format(
             self._get_openstack_release()))
         u.log.debug('openstack release str: {}'.format(
@@ -325,7 +322,14 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
     def get_broker_response(self):
         broker_request = self.get_broker_request()
-        response_key = "broker-rsp-cinder-ceph-0"
+        u.log.debug('Broker request: {}'.format(broker_request))
+
+        response_key = "broker-rsp-{}-{}".format(
+            self.cinder_ceph_sentry.info['service'],
+            self.cinder_ceph_sentry.info['unit']
+        )
+        u.log.debug('Checking response_key: {}'.format(response_key))
+
         ceph_sentrys = [self.ceph0_sentry,
                         self.ceph1_sentry,
                         self.ceph2_sentry]
@@ -335,6 +339,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                 broker_response = json.loads(relation_data[response_key])
                 if (broker_request['request-id'] ==
                         broker_response['request-id']):
+                    u.log.debug('broker_response: {}'.format(broker_response))
                     return broker_response
 
     def test_200_cinderceph_ceph_ceph_relation(self):
@@ -376,11 +381,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         ret = u.validate_relation_data(ceph_unit, relation, expected)
         if ret:
             msg = u.relation_error('cinder cinder-ceph storage-backend', ret)
-            amulet.raise_status(amulet.FAIL, msg=msg)
-        broker_response = self.get_broker_response()
-        if not broker_response or broker_response['exit-code'] != 0:
-            msg = ('Broker request invalid'
-                   ' or failed: {}'.format(broker_response))
             amulet.raise_status(amulet.FAIL, msg=msg)
 
     def test_202_cinderceph_cinder_backend_relation(self):
@@ -528,19 +528,13 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         unit = self.cinder_sentry
         conf = '/etc/cinder/cinder.conf'
         unit_mq = self.rabbitmq_sentry
-        unit_ks = self.keystone_sentry
         rel_mq_ci = unit_mq.relation('amqp', 'cinder:amqp')
-        rel_ks_ci = unit_ks.relation('identity-service',
-                                     'cinder:identity-service')
-
-        auth_uri = 'http://' + rel_ks_ci['auth_host'] + \
-                   ':' + rel_ks_ci['service_port'] + '/'
-        auth_url = ('http://%s:%s/' %
-                    (rel_ks_ci['auth_host'], rel_ks_ci['auth_port']))
 
         expected = {
             'DEFAULT': {
-                'use_syslog': 'False',
+                # XXX: Temporarily disabled use_syslog check, pending
+                #      resolution of https://bugs.launchpad.net/bugs/1604575
+                # 'use_syslog': 'False',
                 'debug': 'False',
                 'verbose': 'False',
                 'iscsi_helper': 'tgtadm',
@@ -548,13 +542,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                 'auth_strategy': 'keystone',
                 'volumes_dir': '/var/lib/cinder/volumes',
                 'enabled_backends': 'cinder-ceph'
-            },
-            'keystone_authtoken': {
-                'admin_user': rel_ks_ci['service_username'],
-                'admin_password': rel_ks_ci['service_password'],
-                'admin_tenant_name': rel_ks_ci['service_tenant'],
-                'auth_uri': auth_uri,
-                'signing_dir': '/var/cache/cinder'
             },
             'cinder-ceph': {
                 'volume_backend_name': 'cinder-ceph',
@@ -570,23 +557,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             'rabbit_password': rel_mq_ci['password'],
             'rabbit_host': rel_mq_ci['hostname'],
         }
-        if self._get_openstack_release() >= self.trusty_liberty:
-            expected['keystone_authtoken'] = {
-                'auth_uri': auth_uri.rstrip('/'),
-                'auth_url': auth_url.rstrip('/'),
-                'auth_plugin': 'password',
-                'project_domain_id': 'default',
-                'user_domain_id': 'default',
-                'project_name': 'services',
-                'username': rel_ks_ci['service_username'],
-                'password': rel_ks_ci['service_password'],
-                'signing_dir': '/var/cache/cinder'
-            }
-
-        if self._get_openstack_release() == self.trusty_kilo:
-            expected['keystone_authtoken']['auth_uri'] = auth_uri
-            expected['keystone_authtoken']['identity_uri'] = \
-                auth_url.strip('/')
 
         if self._get_openstack_release() >= self.trusty_kilo:
             # Kilo or later
@@ -594,8 +564,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         else:
             # Juno or earlier
             expected['DEFAULT'].update(expected_rmq)
-            expected['keystone_authtoken']['auth_host'] = \
-                rel_ks_ci['auth_host']
 
         for section, pairs in expected.iteritems():
             ret = u.validate_config_data(unit, conf, section, pairs)
@@ -606,14 +574,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_301_cinder_ceph_config(self):
         """Verify the data in the ceph.conf file."""
         u.log.debug('Checking cinder ceph config file data...')
-
-        # NOTE(beisner): disabled pending lp#1468511 landing in the cinder
-        # charm to resolve leading spaces in the ceph.conf template.  That
-        # is necessary as configparser treats lines with leading spaces as
-        # continuation lines, and this test fails.
-        u.log.warn('Disabled due to bug lp 1468511')
-        return
-
         unit = self.cinder_sentry
         conf = '/etc/ceph/ceph.conf'
         expected = {
@@ -621,7 +581,9 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                 'auth_supported': 'none',
                 'keyring': '/etc/ceph/$cluster.$name.keyring',
                 'mon host': u.not_null,
-                'log to syslog': 'false'
+                # XXX: Temporarily disabled syslog check, pending
+                #      resolution of https://bugs.launchpad.net/bugs/1604575
+                # 'log to syslog': 'false'
             }
         }
         for section, pairs in expected.iteritems():
@@ -637,7 +599,15 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         u.log.debug('Cinder api check (volumes.list): {}'.format(check))
         assert(check == [])
 
-    def test_401_create_delete_volume(self):
+    def test_401_check_broker_reponse(self):
+        u.log.debug('Checking broker response')
+        broker_response = self.get_broker_response()
+        if not broker_response or broker_response['exit-code'] != 0:
+            msg = ('Broker request invalid'
+                   ' or failed: {}'.format(broker_response))
+            amulet.raise_status(amulet.FAIL, msg=msg)
+
+    def test_402_create_delete_volume(self):
         """Create a cinder volume and delete it."""
         u.log.debug('Creating, checking and deleting cinder volume...')
         vol_new = u.create_cinder_volume(self.cinder)
