@@ -10,6 +10,11 @@ tags:
   - storage
   - file-servers
   - misc
+series:
+  - xenial
+  - trusty
+  - precise
+  - yakkety
 subordinate: true
 provides:
   storage-backend:
