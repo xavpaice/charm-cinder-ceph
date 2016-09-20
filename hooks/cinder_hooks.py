@@ -24,6 +24,7 @@ from cinder_utils import (
     set_ceph_env_variables,
     PACKAGES,
     REQUIRED_INTERFACES,
+    VERSION_PACKAGE,
 )
 from cinder_contexts import CephSubordinateContext
 
@@ -50,7 +51,10 @@ from charmhelpers.contrib.storage.linux.ceph import (
     delete_keyring,
 )
 from charmhelpers.payload.execd import execd_preinstall
-from charmhelpers.contrib.openstack.utils import set_os_workload_status
+from charmhelpers.contrib.openstack.utils import (
+    set_os_workload_status,
+    os_application_version_set,
+)
 
 
 hooks = Hooks()
@@ -159,3 +163,4 @@ if __name__ == '__main__':
     except UnregisteredHookError as e:
         log('Unknown hook {} - skipping.'.format(e))
     set_os_workload_status(CONFIGS, REQUIRED_INTERFACES)
+    os_application_version_set(VERSION_PACKAGE)

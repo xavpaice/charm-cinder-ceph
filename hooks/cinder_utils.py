@@ -37,6 +37,8 @@ PACKAGES = [
     'ceph-common',
 ]
 
+VERSION_PACKAGE = 'cinder-common'
+
 REQUIRED_INTERFACES = {
     'ceph': ['ceph'],
 }

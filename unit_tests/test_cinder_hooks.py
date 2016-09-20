@@ -49,7 +49,8 @@ TO_PATCH = [
     'execd_preinstall',
     'CephSubordinateContext',
     'delete_keyring',
-    'status_set'
+    'status_set',
+    'os_application_version_set',
 ]
 
 
