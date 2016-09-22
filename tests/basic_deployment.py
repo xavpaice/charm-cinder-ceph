@@ -49,11 +49,12 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         self._deploy()
 
         u.log.info('Waiting on extended status checks...')
-        exclude_services = ['mysql', 'nrpe']
+        exclude_services = ['nrpe']
 
         # Wait for deployment ready msgs, except exclusions
         self._auto_wait_for_status(exclude_services=exclude_services)
 
+        self.d.sentry.wait()
         self._initialize_tests()
 
     def _add_services(self):
@@ -64,7 +65,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         # Note: cinder-ceph becomes a cinder subordinate unit.
         this_service = {'name': 'cinder-ceph'}
         other_services = [
-            {'name': 'mysql'},
+            {'name': 'percona-cluster', 'constraints': {'mem': '3072M'}},
             {'name': 'keystone'},
             {'name': 'rabbitmq-server'},
             {'name': 'ceph', 'units': 3},
@@ -79,8 +80,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         relations = {
             'ceph:client': 'cinder-ceph:ceph',
             'cinder:storage-backend': 'cinder-ceph:storage-backend',
-            'keystone:shared-db': 'mysql:shared-db',
-            'cinder:shared-db': 'mysql:shared-db',
+            'keystone:shared-db': 'percona-cluster:shared-db',
+            'cinder:shared-db': 'percona-cluster:shared-db',
             'cinder:identity-service': 'keystone:identity-service',
             'cinder:amqp': 'rabbitmq-server:amqp',
             'cinder:ceph': 'ceph:client',
@@ -93,8 +94,11 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             'admin-password': 'openstack',
             'admin-token': 'ubuntutesting'
         }
-        mysql_config = {
-            'dataset-size': '50%'
+        pxc_config = {
+            'dataset-size': '25%',
+            'max-connections': 1000,
+            'root-password': 'ChangeMe123',
+            'sst-password': 'ChangeMe123',
         }
         cinder_config = {
             'block-device': 'None',
@@ -114,7 +118,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         }
         configs = {
             'keystone': keystone_config,
-            'mysql': mysql_config,
+            'percona-cluster': pxc_config,
             'cinder': cinder_config,
             'ceph': ceph_config,
             'cinder-ceph': cinder_ceph_config
@@ -124,7 +128,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def _initialize_tests(self):
         """Perform final initialization before tests get run."""
         # Access the sentries for inspecting service units
-        self.mysql_sentry = self.d.sentry['mysql'][0]
+        self.pxc_sentry = self.d.sentry['percona-cluster'][0]
         self.keystone_sentry = self.d.sentry['keystone'][0]
         self.rabbitmq_sentry = self.d.sentry['rabbitmq-server'][0]
         self.cinder_sentry = self.d.sentry['cinder'][0]
@@ -199,7 +203,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_102_services(self):
         """Verify the expected services are running on the service units."""
         services = {
-            self.mysql_sentry: ['mysql'],
             self.rabbitmq_sentry: ['rabbitmq-server'],
             self.keystone_sentry: ['keystone'],
             self.cinder_sentry: ['cinder-api',
@@ -421,7 +424,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_204_mysql_cinder_db_relation(self):
         """Verify the mysql:glance shared-db relation data"""
         u.log.debug('Checking mysql:cinder db relation data...')
-        unit = self.mysql_sentry
+        unit = self.pxc_sentry
         relation = ['shared-db', 'cinder:shared-db']
         expected = {
             'private-address': u.valid_ip,
@@ -436,7 +439,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         """Verify the cinder:mysql shared-db relation data"""
         u.log.debug('Checking cinder:mysql db relation data...')
         unit = self.cinder_sentry
-        relation = ['shared-db', 'mysql:shared-db']
+        relation = ['shared-db', 'percona-cluster:shared-db']
         expected = {
             'private-address': u.valid_ip,
             'hostname': u.valid_ip,
