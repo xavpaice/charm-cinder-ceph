@@ -210,7 +210,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                                  'cinder-volume'],
         }
 
-        if self._get_openstack_release() < self.vivid_kilo:
+        if self._get_openstack_release() < self.xenial_mitaka:
             # For upstart systems only.  Ceph services under systemd
             # are checked by process name instead.
             ceph_services = [
