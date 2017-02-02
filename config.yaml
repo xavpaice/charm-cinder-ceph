@@ -24,3 +24,8 @@ options:
       created for the pool. The number of placement groups for a pool can
       only be increased, never decreased - so it is important to identify the
       percent of data that will likely reside in the pool.
+  use-syslog:
+    type: boolean
+    default: False
+    description: |
+      Setting this to True will configure services to log to syslog.
