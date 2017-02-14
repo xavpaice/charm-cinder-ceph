@@ -29,3 +29,8 @@ options:
     default: False
     description: |
       Setting this to True will configure services to log to syslog.
+  restrict-ceph-pools:
+    default: False
+    type: boolean
+    description: |
+      Optionally restrict Ceph key permissions to access pools as required.

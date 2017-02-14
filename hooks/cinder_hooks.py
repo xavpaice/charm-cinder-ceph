@@ -83,7 +83,15 @@ def get_ceph_request():
     replicas = config('ceph-osd-replication-count')
     weight = config('ceph-pool-weight')
     rq.add_op_create_pool(name=service, replica_count=replicas,
-                          weight=weight)
+                          weight=weight,
+                          group="volumes")
+    if config('restrict-ceph-pools'):
+        rq.add_op_request_access_to_group(name="volumes",
+                                          permission='rwx')
+        rq.add_op_request_access_to_group(name="images",
+                                          permission='rwx')
+        rq.add_op_request_access_to_group(name="vms",
+                                          permission='rwx')
     return rq
 
 
@@ -123,6 +131,9 @@ def ceph_broken():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def write_and_restart():
+    # NOTE(jamespage): trigger any configuration related changes
+    #                  for cephx permissions restrictions
+    ceph_changed()
     CONFIGS.write_all()
 
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mock import MagicMock, patch
+from mock import MagicMock, patch, call
 import json
 import cinder_utils as utils
 
@@ -113,14 +113,28 @@ class TestCinderHooks(CharmTestCase):
         self.send_request_if_needed.assert_called_with('cephreq')
 
     @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
+           '.add_op_request_access_to_group')
+    @patch('charmhelpers.contrib.storage.linux.ceph.CephBrokerRq'
            '.add_op_create_pool')
-    def test_create_pool_op(self, mock_broker):
+    def test_create_pool_op(self, mock_create_pool,
+                            mock_request_access):
         self.service_name.return_value = 'cinder'
         self.test_config.set('ceph-osd-replication-count', 4)
         self.test_config.set('ceph-pool-weight', 20)
         hooks.get_ceph_request()
-        mock_broker.assert_called_with(name='cinder', replica_count=4,
-                                       weight=20)
+        mock_create_pool.assert_called_with(name='cinder', replica_count=4,
+                                            weight=20, group='volumes')
+        mock_request_access.assert_not_called()
+
+        self.test_config.set('restrict-ceph-pools', True)
+        hooks.get_ceph_request()
+        mock_create_pool.assert_called_with(name='cinder', replica_count=4,
+                                            weight=20, group='volumes')
+        mock_request_access.assert_has_calls([
+            call(name='volumes', permission='rwx'),
+            call(name='images', permission='rwx'),
+            call(name='vms', permission='rwx'),
+        ])
 
     @patch('charmhelpers.core.hookenv.config')
     def test_ceph_changed_no_keys(self, mock_config):
