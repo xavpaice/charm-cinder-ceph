@@ -36,7 +36,8 @@ class CephSubordinateContext(OSContextGenerator):
         if not is_relation_made('ceph', 'key'):
             return {}
         service = service_name()
-        if get_os_codename_package('cinder-common') >= "icehouse":
+        os_codename = get_os_codename_package('cinder-common')
+        if os_codename >= "icehouse":
             volume_driver = 'cinder.volume.drivers.rbd.RBDDriver'
         else:
             volume_driver = 'cinder.volume.driver.RBDDriver'

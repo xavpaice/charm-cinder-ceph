@@ -84,8 +84,13 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             'cinder:shared-db': 'percona-cluster:shared-db',
             'cinder:identity-service': 'keystone:identity-service',
             'cinder:amqp': 'rabbitmq-server:amqp',
-            'cinder:ceph': 'ceph:client',
         }
+        # If the release is less than ocata then add in the cinder <-> ceph
+        # relationship; it's not needed for ocata onwards as cinder gained the
+        # ability to have multiple backends, and in this test (cinder-ceph) we
+        # only want THIS backend.
+        if self._get_openstack_release() < self.xenial_ocata:
+            relations['cinder:ceph'] = 'ceph:client'
         super(CinderCephBasicDeployment, self)._add_relations(relations)
 
     def _configure_services(self):
@@ -202,12 +207,18 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
     def test_102_services(self):
         """Verify the expected services are running on the service units."""
+        if self._get_openstack_release() >= self.xenial_ocata:
+            cinder_services = ['apache2',
+                               'cinder-scheduler',
+                               'cinder-volume']
+        else:
+            cinder_services = ['cinder-api',
+                               'cinder-scheduler',
+                               'cinder-volume']
         services = {
             self.rabbitmq_sentry: ['rabbitmq-server'],
             self.keystone_sentry: ['keystone'],
-            self.cinder_sentry: ['cinder-api',
-                                 'cinder-scheduler',
-                                 'cinder-volume'],
+            self.cinder_sentry: cinder_services,
         }
 
         if self._get_openstack_release() < self.xenial_mitaka:
@@ -548,15 +559,11 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
         expected = {
             'DEFAULT': {
-                # XXX: Temporarily disabled use_syslog check, pending
-                #      resolution of https://bugs.launchpad.net/bugs/1604575
-                # 'use_syslog': 'False',
+                'use_syslog': 'False',
                 'debug': 'False',
                 'verbose': 'False',
                 'iscsi_helper': 'tgtadm',
-                'volume_group': 'cinder-volumes',
                 'auth_strategy': 'keystone',
-                'volumes_dir': '/var/lib/cinder/volumes',
                 'enabled_backends': 'cinder-ceph'
             },
             'cinder-ceph': {
@@ -564,8 +571,11 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                 'volume_driver': 'cinder.volume.drivers.rbd.RBDDriver',
                 'rbd_pool': 'cinder-ceph',
                 'rbd_user': 'cinder-ceph'
-            }
+            },
         }
+        if self._get_openstack_release() < self.xenial_ocata:
+            expected['DEFAULT']['volume_group'] = 'cinder-volumes'
+            expected['DEFAULT']['volumes_dir'] = '/var/lib/cinder/volumes'
 
         expected_rmq = {
             'rabbit_userid': 'cinder',
@@ -643,6 +653,11 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
         if 'cinder-ceph' not in expected_pools:
             expected_pools.append('cinder-ceph')
+
+        if self._get_openstack_release() >= self.xenial_ocata:
+            # No cinder after mitaka because we don't use the relation in this
+            # test
+            expected_pools.remove('cinder')
 
         results = []
         sentries = [
@@ -740,6 +755,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_499_ceph_cmds_exit_zero(self):
         """Check basic functionality of ceph cli commands against
         all ceph units, and the cinder-ceph unit."""
+        u.log.debug('Checking exit values are 0 on ceph commands')
         sentry_units = [
             self.cinder_ceph_sentry,
             self.ceph0_sentry,
