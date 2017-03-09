@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from mock import MagicMock, patch, call
+from mock import MagicMock, patch, call, ANY
 import json
 import cinder_utils as utils
 
@@ -42,6 +42,9 @@ TO_PATCH = [
     'service_name',
     'service_restart',
     'log',
+    'leader_get',
+    'leader_set',
+    'is_leader',
     # charmhelpers.core.host
     'apt_install',
     'apt_update',
@@ -194,4 +197,71 @@ class TestCinderHooks(CharmTestCase):
             backend_name='test',
             subordinate_configuration=json.dumps({'test': 1}),
             stateless=True,
+        )
+
+    @patch.object(hooks, 'ceph_access_joined')
+    @patch.object(hooks, 'storage_backend')
+    def test_leader_settings_changed(self,
+                                     storage_backend,
+                                     ceph_access_joined):
+        self.relation_ids.side_effect = [['ceph-access:1'],
+                                         ['storage-backend:23']]
+        hooks.leader_settings_changed()
+        ceph_access_joined.assert_called_with('ceph-access:1')
+        storage_backend.assert_called_with('storage-backend:23')
+
+    @patch.object(hooks, 'CONFIGS')
+    def test_ceph_access_joined_no_ceph(self,
+                                        CONFIGS):
+        CONFIGS.complete_contexts.return_value = []
+        hooks.ceph_access_joined()
+        self.relation_set.assert_not_called()
+
+    @patch.object(hooks, 'CONFIGS')
+    def test_ceph_access_joined_follower_unseeded(self,
+                                                  CONFIGS):
+        CONFIGS.complete_contexts.return_value = ['ceph']
+        self.is_leader.return_value = False
+        self.leader_get.return_value = None
+        hooks.ceph_access_joined()
+        self.relation_set.assert_not_called()
+
+    @patch.object(hooks, 'CephContext')
+    @patch.object(hooks, 'CONFIGS')
+    def test_ceph_access_joined_leader(self,
+                                       CONFIGS,
+                                       CephContext):
+        CONFIGS.complete_contexts.return_value = ['ceph']
+        self.is_leader.return_value = True
+        self.leader_get.side_effect = [None, 'newuuid']
+        context = MagicMock()
+        context.return_value = {'key': 'mykey'}
+        CephContext.return_value = context
+        hooks.ceph_access_joined()
+        self.leader_get.assert_called_with('secret-uuid')
+        self.leader_set.assert_called_with({'secret-uuid': ANY})
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            relation_settings={'key': 'mykey',
+                               'secret-uuid': 'newuuid'}
+        )
+
+    @patch.object(hooks, 'CephContext')
+    @patch.object(hooks, 'CONFIGS')
+    def test_ceph_access_joined_follower_seeded(self,
+                                                CONFIGS,
+                                                CephContext):
+        CONFIGS.complete_contexts.return_value = ['ceph']
+        self.is_leader.return_value = False
+        self.leader_get.return_value = 'newuuid'
+        context = MagicMock()
+        context.return_value = {'key': 'mykey'}
+        CephContext.return_value = context
+        hooks.ceph_access_joined()
+        self.leader_get.assert_called_with('secret-uuid')
+        self.leader_set.assert_not_called()
+        self.relation_set.assert_called_with(
+            relation_id=None,
+            relation_settings={'key': 'mykey',
+                               'secret-uuid': 'newuuid'}
         )
