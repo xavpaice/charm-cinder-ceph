@@ -391,14 +391,27 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                     'cinder:storage-backend relation data...')
         unit = self.cinder_ceph_sentry
         relation = ['storage-backend', 'cinder:storage-backend']
+        backend_uuid, _ = unit.run('leader-get secret-uuid')
 
-        sub = ('{"cinder": {"/etc/cinder/cinder.conf": {"sections": '
-               '{"cinder-ceph": [["volume_backend_name", "cinder-ceph"], '
-               '["volume_driver", "cinder.volume.drivers.rbd.RBDDriver"], '
-               '["rbd_pool", "cinder-ceph"], ["rbd_user", "cinder-ceph"]]}}}}')
+        sub_dict = {
+            "cinder": {
+                "/etc/cinder/cinder.conf": {
+                    "sections": {
+                        "cinder-ceph": [
+                            ["volume_backend_name", "cinder-ceph"],
+                            ["volume_driver",
+                             "cinder.volume.drivers.rbd.RBDDriver"],
+                            ["rbd_pool", "cinder-ceph"],
+                            ["rbd_user", "cinder-ceph"],
+                            ["rbd_secret_uuid", backend_uuid],
+                        ]
+                    }
+                }
+            }
+        }
 
         expected = {
-            'subordinate_configuration': sub,
+            'subordinate_configuration': json.dumps(sub_dict),
             'private-address': u.valid_ip,
             'backend_name': 'cinder-ceph'
         }
