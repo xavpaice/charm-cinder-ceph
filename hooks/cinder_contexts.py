@@ -15,6 +15,7 @@
 from charmhelpers.core.hookenv import (
     service_name,
     is_relation_made,
+    leader_get,
 )
 
 from charmhelpers.contrib.openstack.context import (
@@ -48,6 +49,7 @@ class CephSubordinateContext(OSContextGenerator):
                             ('volume_driver', volume_driver),
                             ('rbd_pool', service),
                             ('rbd_user', service),
+                            ('rbd_secret_uuid', leader_get('secret-uuid')),
                         ]
                     }
                 }

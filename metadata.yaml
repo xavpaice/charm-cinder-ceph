@@ -19,6 +19,8 @@ provides:
   storage-backend:
     interface: cinder-backend
     scope: container
+  ceph-access:
+    interface: cinder-ceph-key
 requires:
   juju-info:
     interface: juju-info

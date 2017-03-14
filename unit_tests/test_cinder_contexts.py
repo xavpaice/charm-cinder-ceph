@@ -21,7 +21,8 @@ from test_utils import (
 TO_PATCH = [
     'is_relation_made',
     'service_name',
-    'get_os_codename_package'
+    'get_os_codename_package',
+    'leader_get',
 ]
 
 
@@ -29,6 +30,7 @@ class TestCinderContext(CharmTestCase):
 
     def setUp(self):
         super(TestCinderContext, self).setUp(contexts, TO_PATCH)
+        self.leader_get.return_value = 'libvirt-uuid'
 
     def test_ceph_not_related(self):
         self.is_relation_made.return_value = False
@@ -50,6 +52,7 @@ class TestCinderContext(CharmTestCase):
                              'cinder.volume.driver.RBDDriver'),
                             ('rbd_pool', service),
                             ('rbd_user', service),
+                            ('rbd_secret_uuid', 'libvirt-uuid'),
                         ]
                     }
                 }
@@ -71,6 +74,7 @@ class TestCinderContext(CharmTestCase):
                              'cinder.volume.drivers.rbd.RBDDriver'),
                             ('rbd_pool', service),
                             ('rbd_user', service),
+                            ('rbd_secret_uuid', 'libvirt-uuid'),
                         ]
                     }
                 }

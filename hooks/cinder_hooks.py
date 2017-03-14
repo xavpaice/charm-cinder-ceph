@@ -17,6 +17,7 @@
 import os
 import sys
 import json
+import uuid
 
 from cinder_utils import (
     register_configs,
@@ -27,6 +28,7 @@ from cinder_utils import (
     VERSION_PACKAGE,
 )
 from cinder_contexts import CephSubordinateContext
+from charmhelpers.contrib.openstack.context import CephContext
 
 from charmhelpers.core.hookenv import (
     Hooks,
@@ -37,6 +39,9 @@ from charmhelpers.core.hookenv import (
     relation_ids,
     status_set,
     log,
+    leader_get,
+    leader_set,
+    is_leader,
 )
 from charmhelpers.fetch import apt_install, apt_update
 from charmhelpers.core.host import (
@@ -131,6 +136,10 @@ def ceph_broken():
 @hooks.hook('config-changed')
 @restart_on_change(restart_map())
 def write_and_restart():
+    # NOTE(jamespage): seed uuid for use on compute nodes with libvirt
+    if not leader_get('secret-uuid') and is_leader():
+        leader_set({'secret-uuid': str(uuid.uuid4())})
+
     # NOTE(jamespage): trigger any configuration related changes
     #                  for cephx permissions restrictions
     ceph_changed()
@@ -166,6 +175,40 @@ def upgrade_charm():
         set_ceph_env_variables(service=service_name())
         for rid in relation_ids('storage-backend'):
             storage_backend(rid)
+
+
+@hooks.hook('leader-settings-changed')
+def leader_settings_changed():
+    # NOTE(jamespage): lead unit will seed libvirt secret UUID
+    #                  re-exec relations that use this data.
+    for r_id in relation_ids('ceph-access'):
+        ceph_access_joined(r_id)
+    for r_id in relation_ids('storage-backend'):
+        storage_backend(r_id)
+
+
+@hooks.hook('ceph-access-relation-joined')
+def ceph_access_joined(relation_id=None):
+    if 'ceph' not in CONFIGS.complete_contexts():
+        log('Deferring key provision until ceph relation complete')
+        return
+
+    secret_uuid = leader_get('secret-uuid')
+    if not secret_uuid:
+        if is_leader():
+            leader_set({'secret-uuid': str(uuid.uuid4())})
+        else:
+            log('Deferring key provision until leader seeds libvirt uuid')
+            return
+
+    # NOTE(jamespage): get key from ceph using a context
+    ceph_keys = CephContext()()
+
+    relation_set(
+        relation_id=relation_id,
+        relation_settings={'key': ceph_keys.get('key'),
+                           'secret-uuid': leader_get('secret-uuid')}
+    )
 
 
 if __name__ == '__main__':
