@@ -22,7 +22,10 @@ from charmhelpers.contrib.openstack.context import (
     OSContextGenerator,
 )
 
-from charmhelpers.contrib.openstack.utils import get_os_codename_package
+from charmhelpers.contrib.openstack.utils import (
+    get_os_codename_package,
+    CompareOpenStackReleases,
+)
 
 
 class CephSubordinateContext(OSContextGenerator):
@@ -37,7 +40,7 @@ class CephSubordinateContext(OSContextGenerator):
             return {}
         service = service_name()
         os_codename = get_os_codename_package('cinder-common')
-        if os_codename >= "icehouse":
+        if CompareOpenStackReleases(os_codename) >= "icehouse":
             volume_driver = 'cinder.volume.drivers.rbd.RBDDriver'
         else:
             volume_driver = 'cinder.volume.driver.RBDDriver'
