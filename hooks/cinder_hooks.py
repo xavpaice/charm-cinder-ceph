@@ -119,6 +119,8 @@ def ceph_changed():
         set_ceph_env_variables(service=service)
         for rid in relation_ids('storage-backend'):
             storage_backend(rid)
+        for r_id in relation_ids('ceph-access'):
+            ceph_access_joined(r_id)
         # Ensure that cinder-volume is restarted since only now can we
         # guarantee that ceph resources are ready.
         service_restart('cinder-volume')
@@ -187,7 +189,8 @@ def leader_settings_changed():
         storage_backend(r_id)
 
 
-@hooks.hook('ceph-access-relation-joined')
+@hooks.hook('ceph-access-relation-joined',
+            'ceph-access-relation-changed')
 def ceph_access_joined(relation_id=None):
     if 'ceph' not in CONFIGS.complete_contexts():
         log('Deferring key provision until ceph relation complete')
