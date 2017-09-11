@@ -34,14 +34,14 @@ class TestCinderContext(CharmTestCase):
 
     def test_ceph_not_related(self):
         self.is_relation_made.return_value = False
-        self.assertEquals(contexts.CephSubordinateContext()(), {})
+        self.assertEqual(contexts.CephSubordinateContext()(), {})
 
     def test_ceph_related(self):
         self.is_relation_made.return_value = True
         self.get_os_codename_package.return_value = "havana"
         service = 'mycinder'
         self.service_name.return_value = service
-        self.assertEquals(
+        self.assertEqual(
             contexts.CephSubordinateContext()(),
             {"cinder": {
                 "/etc/cinder/cinder.conf": {
@@ -63,7 +63,7 @@ class TestCinderContext(CharmTestCase):
         self.get_os_codename_package.return_value = "icehouse"
         service = 'mycinder'
         self.service_name.return_value = service
-        self.assertEquals(
+        self.assertEqual(
             contexts.CephSubordinateContext()(),
             {"cinder": {
                 "/etc/cinder/cinder.conf": {
