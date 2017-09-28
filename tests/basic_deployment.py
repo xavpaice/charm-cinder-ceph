@@ -65,7 +65,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         # Note: cinder-ceph becomes a cinder subordinate unit.
         this_service = {'name': 'cinder-ceph'}
         other_services = [
-            {'name': 'percona-cluster', 'constraints': {'mem': '3072M'}},
+            {'name': 'percona-cluster'},
             {'name': 'keystone'},
             {'name': 'rabbitmq-server'},
             {'name': 'ceph', 'units': 3},
@@ -100,10 +100,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             'admin-token': 'ubuntutesting'
         }
         pxc_config = {
-            'dataset-size': '25%',
+            'innodb-buffer-pool-size': '256M',
             'max-connections': 1000,
-            'root-password': 'ChangeMe123',
-            'sst-password': 'ChangeMe123',
         }
         cinder_config = {
             'block-device': 'None',
@@ -245,18 +243,32 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_110_users(self):
         """Verify expected users."""
         u.log.debug('Checking keystone users...')
-        expected = [
-            {'name': 'cinder_cinderv2',
-             'enabled': True,
-             'tenantId': u.not_null,
-             'id': u.not_null,
-             'email': 'juju@localhost'},
-            {'name': 'admin',
-             'enabled': True,
-             'tenantId': u.not_null,
-             'id': u.not_null,
-             'email': 'juju@localhost'}
-        ]
+
+        if self._get_openstack_release() < self.xenial_pike:
+            expected = [{
+                'name': 'cinder_cinderv2',
+                'enabled': True,
+                'tenantId': u.not_null,
+                'id': u.not_null,
+                'email': 'juju@localhost',
+            }]
+        else:
+            expected = [{
+                'name': 'cinderv3_cinderv2',
+                'enabled': True,
+                'tenantId': u.not_null,
+                'id': u.not_null,
+                'email': 'juju@localhost',
+            }]
+
+        expected.append({
+            'name': 'admin',
+            'enabled': True,
+            'tenantId': u.not_null,
+            'id': u.not_null,
+            'email': 'juju@localhost',
+        })
+
         actual = self.keystone.users.list()
         ret = u.validate_user_data(expected, actual)
         if ret:
@@ -265,26 +277,26 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
     def test_112_service_catalog(self):
         """Verify that the service catalog endpoint data"""
         u.log.debug('Checking keystone service catalog...')
-        endpoint_vol = {
-            'adminURL': u.valid_url,
-            'region': 'RegionOne',
-            'publicURL': u.valid_url,
-            'internalURL': u.valid_url
-        }
-        endpoint_id = {
-            'adminURL': u.valid_url,
-            'region': 'RegionOne',
-            'publicURL': u.valid_url,
-            'internalURL': u.valid_url
-        }
+        endpoint_vol = {'adminURL': u.valid_url,
+                        'region': 'RegionOne',
+                        'publicURL': u.valid_url,
+                        'internalURL': u.valid_url}
+        endpoint_id = {'adminURL': u.valid_url,
+                       'region': 'RegionOne',
+                       'publicURL': u.valid_url,
+                       'internalURL': u.valid_url}
         if self._get_openstack_release() >= self.trusty_icehouse:
             endpoint_vol['id'] = u.not_null
             endpoint_id['id'] = u.not_null
 
-        expected = {
-            'identity': [endpoint_id],
-            'volume': [endpoint_id]
-        }
+        if self._get_openstack_release() >= self.xenial_pike:
+            # Pike and later
+            expected = {'identity': [endpoint_id],
+                        'volumev2': [endpoint_id]}
+        else:
+            # Ocata and prior
+            expected = {'identity': [endpoint_id],
+                        'volume': [endpoint_id]}
         actual = self.keystone.service_catalog.get_endpoints()
 
         ret = u.validate_svc_catalog_endpoint_data(expected, actual)
@@ -491,10 +503,17 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             'auth_protocol': 'http',
             'private-address': u.valid_ip,
             'auth_host': u.valid_ip,
-            'service_username': 'cinder_cinderv2',
             'service_tenant_id': u.not_null,
             'service_host': u.valid_ip
         }
+
+        if self._get_openstack_release() < self.xenial_pike:
+            # Ocata and earlier
+            expected['service_username'] = 'cinder_cinderv2'
+        else:
+            # Pike and later
+            expected['service_username'] = 'cinderv3_cinderv2'
+
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
             msg = u.relation_error('identity-service cinder', ret)
@@ -507,11 +526,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         relation = ['identity-service',
                     'keystone:identity-service']
         expected = {
-            'cinder_service': 'cinder',
-            'cinder_region': 'RegionOne',
-            'cinder_public_url': u.valid_url,
-            'cinder_internal_url': u.valid_url,
-            'cinder_admin_url': u.valid_url,
             'private-address': u.valid_ip
         }
         ret = u.validate_relation_data(unit, relation, expected)
@@ -654,6 +668,12 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         if 'cinder-ceph' not in expected_pools:
             expected_pools.append('cinder-ceph')
 
+        if (self._get_openstack_release() >= self.xenial_ocata and
+                'cinder' in expected_pools):
+            # No cinder after mitaka because we don't use the relation in this
+            # test
+            expected_pools.remove('cinder')
+
         results = []
         sentries = [
             self.ceph0_sentry,
@@ -700,6 +720,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
 
         # Check ceph cinder pool object count, disk space usage and pool name
         u.log.debug('Checking ceph cinder pool original samples...')
+        u.log.debug('cinder-ceph pool: {}'.format(cinder_ceph_pool))
+        u.log.debug('Checking ceph cinder pool original samples...')
         pool_name, obj_count, kb_used = u.get_ceph_pool_sample(
             sentry_unit, cinder_ceph_pool)
 
@@ -741,11 +763,14 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         if ret:
             amulet.raise_status(amulet.FAIL, msg=ret)
 
-        # Validate ceph cinder pool disk space usage samples over time
-        ret = u.validate_ceph_pool_samples(pool_size_samples,
-                                           "cinder pool disk usage")
-        if ret:
-            amulet.raise_status(amulet.FAIL, msg=ret)
+        # Luminous (pike) ceph seems more efficient at disk usage so we cannot
+        # grantee the ordering of kb_used
+        if self._get_openstack_release() < self.xenial_mitaka:
+            # Validate ceph cinder pool disk space usage samples over time
+            ret = u.validate_ceph_pool_samples(pool_size_samples,
+                                               "cinder pool disk usage")
+            if ret:
+                amulet.raise_status(amulet.FAIL, msg=ret)
 
     def test_499_ceph_cmds_exit_zero(self):
         """Check basic functionality of ceph cli commands against
