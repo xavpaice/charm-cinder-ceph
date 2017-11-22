@@ -654,11 +654,6 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
         if 'cinder-ceph' not in expected_pools:
             expected_pools.append('cinder-ceph')
 
-        if self._get_openstack_release() >= self.xenial_ocata:
-            # No cinder after mitaka because we don't use the relation in this
-            # test
-            expected_pools.remove('cinder')
-
         results = []
         sentries = [
             self.ceph0_sentry,
