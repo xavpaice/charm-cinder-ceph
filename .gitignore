@@ -6,4 +6,3 @@ tags
 *.sw[nop]
 *.pyc
 .idea
-.stestr

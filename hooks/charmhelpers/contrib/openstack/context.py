@@ -101,8 +101,6 @@ from charmhelpers.contrib.openstack.utils import (
     git_determine_python_path,
     enable_memcache,
     snap_install_requested,
-    CompareOpenStackReleases,
-    os_release,
 )
 from charmhelpers.core.unitdata import kv
 
@@ -1568,18 +1566,8 @@ class InternalEndpointContext(OSContextGenerator):
     endpoints by default so this allows admins to optionally use internal
     endpoints.
     """
-    def __init__(self, ost_rel_check_pkg_name):
-        self.ost_rel_check_pkg_name = ost_rel_check_pkg_name
-
     def __call__(self):
-        ctxt = {'use_internal_endpoints': config('use-internal-endpoints')}
-        rel = os_release(self.ost_rel_check_pkg_name, base='icehouse')
-        if CompareOpenStackReleases(rel) >= 'pike':
-            ctxt['volume_api_version'] = '3'
-        else:
-            ctxt['volume_api_version'] = '2'
-
-        return ctxt
+        return {'use_internal_endpoints': config('use-internal-endpoints')}
 
 
 class AppArmorContext(OSContextGenerator):
