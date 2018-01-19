@@ -254,7 +254,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             }]
         else:
             expected = [{
-                'name': 'cinderv3_cinderv2',
+                'name': 'cinderv2_cinderv3',
                 'enabled': True,
                 'tenantId': u.not_null,
                 'id': u.not_null,
@@ -512,7 +512,7 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
             expected['service_username'] = 'cinder_cinderv2'
         else:
             # Pike and later
-            expected['service_username'] = 'cinderv3_cinderv2'
+            expected['service_username'] = 'cinderv2_cinderv3'
 
         ret = u.validate_relation_data(unit, relation, expected)
         if ret:
