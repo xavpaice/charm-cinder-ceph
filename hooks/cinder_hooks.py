@@ -67,7 +67,7 @@ hooks = Hooks()
 CONFIGS = register_configs()
 
 
-@hooks.hook('install')
+@hooks.hook('install.real')
 def install():
     status_set('maintenance', 'Executing pre-install')
     execd_preinstall()
