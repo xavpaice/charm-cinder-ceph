@@ -31,7 +31,7 @@ TO_PATCH = [
     'ensure_ceph_keyring',
     'register_configs',
     'restart_map',
-    'set_ceph_env_variables',
+    'scrub_old_style_ceph',
     'is_request_complete',
     'send_request_if_needed',
     'CONFIGS',
@@ -98,7 +98,6 @@ class TestCinderHooks(CharmTestCase):
                                                     user='cinder',
                                                     group='cinder')
         self.assertTrue(self.CONFIGS.write_all.called)
-        self.set_ceph_env_variables.assert_called_with(service='cinder')
 
     @patch.object(hooks, 'get_ceph_request')
     @patch('charmhelpers.core.hookenv.config')
@@ -178,7 +177,7 @@ class TestCinderHooks(CharmTestCase):
         hooks.hooks.execute(['hooks/upgrade-charm'])
         _storage_backend.assert_called_with('ceph:1')
         assert self.CONFIGS.write_all.called
-        assert self.set_ceph_env_variables.called
+        self.scrub_old_style_ceph.assert_called_once_with()
 
     @patch('charmhelpers.core.hookenv.config')
     @patch.object(hooks, 'storage_backend')

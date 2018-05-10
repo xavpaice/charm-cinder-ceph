@@ -427,6 +427,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                             ["rbd_pool", "cinder-ceph"],
                             ["rbd_user", "cinder-ceph"],
                             ["rbd_secret_uuid", backend_uuid],
+                            ['rbd_ceph_conf',
+                             '/var/lib/charm/cinder-ceph/ceph.conf'],
                         ]
                     }
                 }
@@ -584,7 +586,8 @@ class CinderCephBasicDeployment(OpenStackAmuletDeployment):
                 'volume_backend_name': 'cinder-ceph',
                 'volume_driver': 'cinder.volume.drivers.rbd.RBDDriver',
                 'rbd_pool': 'cinder-ceph',
-                'rbd_user': 'cinder-ceph'
+                'rbd_user': 'cinder-ceph',
+                'rbd_ceph_conf': '/var/lib/charm/cinder-ceph/ceph.conf',
             },
         }
         if self._get_openstack_release() < self.xenial_ocata:

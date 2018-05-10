@@ -27,6 +27,12 @@ from charmhelpers.contrib.openstack.utils import (
     CompareOpenStackReleases,
 )
 
+CHARM_CEPH_CONF = '/var/lib/charm/{}/ceph.conf'
+
+
+def ceph_config_file():
+    return CHARM_CEPH_CONF.format(service_name())
+
 
 class CephSubordinateContext(OSContextGenerator):
     interfaces = ['ceph-cinder']
@@ -54,6 +60,7 @@ class CephSubordinateContext(OSContextGenerator):
                             ('rbd_pool', service),
                             ('rbd_user', service),
                             ('rbd_secret_uuid', leader_get('secret-uuid')),
+                            ('rbd_ceph_conf', ceph_config_file()),
                         ]
                     }
                 }

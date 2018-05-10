@@ -31,6 +31,7 @@ class TestCinderContext(CharmTestCase):
     def setUp(self):
         super(TestCinderContext, self).setUp(contexts, TO_PATCH)
         self.leader_get.return_value = 'libvirt-uuid'
+        self.maxDiff = None
 
     def test_ceph_not_related(self):
         self.is_relation_made.return_value = False
@@ -53,6 +54,8 @@ class TestCinderContext(CharmTestCase):
                             ('rbd_pool', service),
                             ('rbd_user', service),
                             ('rbd_secret_uuid', 'libvirt-uuid'),
+                            ('rbd_ceph_conf',
+                             '/var/lib/charm/mycinder/ceph.conf')
                         ]
                     }
                 }
@@ -75,6 +78,8 @@ class TestCinderContext(CharmTestCase):
                             ('rbd_pool', service),
                             ('rbd_user', service),
                             ('rbd_secret_uuid', 'libvirt-uuid'),
+                            ('rbd_ceph_conf',
+                             '/var/lib/charm/mycinder/ceph.conf')
                         ]
                     }
                 }

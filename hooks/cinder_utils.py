@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import print_function
+
 import os
+import re
+
 from collections import OrderedDict
+from tempfile import NamedTemporaryFile
+
 
 from charmhelpers.core.hookenv import (
     relation_ids,
@@ -115,12 +121,19 @@ def restart_map():
     return OrderedDict(_map)
 
 
-def set_ceph_env_variables(service):
-    # XXX: Horrid kludge to make cinder-volume use
-    # a different ceph username than admin
-    env = open('/etc/environment', 'r').read()
-    if 'CEPH_ARGS' not in env:
-        with open('/etc/environment', 'a') as out:
-            out.write('CEPH_ARGS="--id %s"\n' % service)
-    with open('/etc/init/cinder-volume.override', 'w') as out:
-            out.write('env CEPH_ARGS="--id %s"\n' % service)
+def scrub_old_style_ceph():
+    """Purge any legacy ceph configuration from install"""
+    # NOTE: purge old override file - no longer needed
+    if os.path.exists('/etc/init/cinder-volume.override'):
+        os.remove('/etc/init/cinder-volume.override')
+    # NOTE: purge any CEPH_ARGS data from /etc/environment
+    env_file = '/etc/environment'
+    ceph_match = re.compile("^CEPH_ARGS.*").search
+    with open(env_file, 'r') as input_file:
+        with NamedTemporaryFile(mode='w',
+                                delete=False,
+                                dir=os.path.dirname(env_file)) as outfile:
+            for line in input_file:
+                if not ceph_match(line):
+                    print(line, end='', file=outfile)
+            os.rename(outfile.name, input_file.name)

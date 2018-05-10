@@ -22,7 +22,7 @@ import uuid
 from cinder_utils import (
     register_configs,
     restart_map,
-    set_ceph_env_variables,
+    scrub_old_style_ceph,
     PACKAGES,
     REQUIRED_INTERFACES,
     VERSION_PACKAGE,
@@ -122,7 +122,6 @@ def ceph_changed():
     if is_request_complete(get_ceph_request()):
         log('Request complete')
         CONFIGS.write_all()
-        set_ceph_env_variables(service=service)
         for rid in relation_ids('storage-backend'):
             storage_backend(rid)
         for r_id in relation_ids('ceph-access'):
@@ -180,9 +179,9 @@ def storage_backend_changed():
 def upgrade_charm():
     if 'ceph' in CONFIGS.complete_contexts():
         CONFIGS.write_all()
-        set_ceph_env_variables(service=service_name())
         for rid in relation_ids('storage-backend'):
             storage_backend(rid)
+    scrub_old_style_ceph()
 
 
 @hooks.hook('leader-settings-changed')
